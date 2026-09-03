@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import cron from 'node-cron';
+import crypto from 'crypto';
 
 // Use a type alias for config if desired, or handle inside getBotConfig
 
@@ -28,9 +29,21 @@ async function getBotConfig() {
     if (!parsed.scheduleTimes) {
       parsed.scheduleTimes = ['09:00'];
     }
+    if (!parsed.webhookSecret) {
+      parsed.webhookSecret = crypto.randomBytes(16).toString('hex');
+      await fs.writeFile(CONFIG_FILE, JSON.stringify(parsed, null, 2), 'utf-8');
+    }
     return parsed;
   } catch (error) {
-    return { isActive: false, scheduleTimes: ['09:00'], fbPageId: '', igUserId: '', accessToken: '' };
+    const defaultSecret = process.env.WEBHOOK_SECRET || crypto.randomBytes(16).toString('hex');
+    return { 
+      isActive: process.env.AUTO_POST_ACTIVE === 'true' || false, 
+      scheduleTimes: process.env.SCHEDULE_TIMES ? process.env.SCHEDULE_TIMES.split(',') : ['09:00'], 
+      fbPageId: process.env.FB_PAGE_ID || '', 
+      igUserId: process.env.IG_USER_ID || '', 
+      accessToken: process.env.FB_ACCESS_TOKEN || '', 
+      webhookSecret: defaultSecret 
+    };
   }
 }
 
@@ -222,11 +235,43 @@ app.get('/api/config', async (req, res) => {
 app.post('/api/config', async (req, res) => {
   try {
     const newConfig = req.body;
+    // ensure webhook secret is preserved if missing from request
+    if (!newConfig.webhookSecret) {
+       const existingConfig = await getBotConfig();
+       newConfig.webhookSecret = existingConfig.webhookSecret;
+    }
     await saveBotConfig(newConfig);
     setupCronJob(newConfig);
     res.json({ success: true, message: 'Configuration saved and scheduler updated' });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to save configuration' });
+  }
+});
+
+// Webhook endpoint for external Cron services
+app.get('/api/webhook/cron', async (req, res) => {
+  try {
+    const config = await getBotConfig();
+    const providedSecret = req.query.secret;
+
+    if (!config.webhookSecret || providedSecret !== config.webhookSecret) {
+      return res.status(401).json({ success: false, error: 'Unauthorized: Invalid or missing secret parameter' });
+    }
+
+    if (!config.isActive) {
+      return res.status(400).json({ success: false, error: 'Auto-posting is disabled in app settings.' });
+    }
+
+    console.log('External Webhook triggered: Generating and posting content...');
+    
+    // We start the process and wait for it.
+    const postData = await generateAiPostData();
+    const publishResults = await publishToSocialMedia(postData, config);
+    
+    res.json({ success: true, message: 'Post generated and published successfully via webhook.', publishResults });
+  } catch (error: any) {
+    console.error('Webhook automated posting failed:', error);
+    res.status(500).json({ success: false, error: error.message || 'Webhook post generation failed' });
   }
 });
 

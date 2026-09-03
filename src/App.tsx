@@ -28,7 +28,8 @@ export default function App() {
     scheduleTimes: ['09:00'],
     fbPageId: '',
     igUserId: '',
-    accessToken: ''
+    accessToken: '',
+    webhookSecret: ''
   });
 
   useEffect(() => {
@@ -380,6 +381,31 @@ export default function App() {
                     </div>
                   </div>
                   
+                  {settings.webhookSecret && (
+                    <div className="mt-2 p-4 bg-orange-50 border border-orange-100 rounded-lg">
+                      <h4 className="text-sm font-bold text-orange-900 mb-1.5">Cloud Cron Webhook URL</h4>
+                      <p className="text-xs text-orange-700 mb-3 leading-relaxed">
+                        If you permanently deploy this app (e.g. to Cloud Run), background timers will go to sleep. Use this secret URL in a free external service like <strong>cron-job.org</strong> to reliably trigger your posts 24/7!
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="text" 
+                          readOnly 
+                          value={`${window.location.origin}/api/webhook/cron?secret=${settings.webhookSecret}`}
+                          className="flex-1 px-3 py-2 bg-white border border-orange-200 rounded focus:outline-none text-xs text-orange-800 font-mono"
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => navigator.clipboard.writeText(`${window.location.origin}/api/webhook/cron?secret=${settings.webhookSecret}`)}
+                          className="p-2 bg-white border border-orange-200 text-orange-700 hover:bg-orange-100 rounded transition-colors"
+                          title="Copy to clipboard"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-semibold text-stone-700 mb-1.5">Facebook Page ID</label>
                     <input type="text" placeholder="e.g. 10123456789" value={settings.fbPageId} onChange={e => setSettings({ ...settings, fbPageId: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors text-sm" />
