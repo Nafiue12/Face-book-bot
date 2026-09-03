@@ -1,0 +1,6 @@
+{
+  "name": "FitPost Generator",
+  "description": "An AI-powered bot that generates engaging gym facts, viral hashtags, and motivational images for daily social media posts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
