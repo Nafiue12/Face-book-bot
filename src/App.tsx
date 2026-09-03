@@ -385,7 +385,7 @@ export default function App() {
                     <div className="mt-2 p-4 bg-orange-50 border border-orange-100 rounded-lg">
                       <h4 className="text-sm font-bold text-orange-900 mb-1.5">Cloud Cron Webhook URL</h4>
                       <p className="text-xs text-orange-700 mb-3 leading-relaxed">
-                        If you permanently deploy this app (e.g. to Cloud Run), background timers will go to sleep. Use this secret URL in a free external service like <strong>cron-job.org</strong> to reliably trigger your posts 24/7!
+                        If you deploy to a free host like Render, the server goes to sleep after 15 minutes. Put this secret URL into <strong>cron-job.org</strong> and set it to run <strong>EVERY 5 MINUTES</strong>. This will act as a "ping" to keep the server awake 24/7, allowing your internal Schedule Times (above) to trigger correctly!
                       </p>
                       <div className="flex items-center gap-2">
                         <input 

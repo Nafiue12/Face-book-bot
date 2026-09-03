@@ -303,7 +303,7 @@ app.post('/api/config', async (req, res) => {
   }
 });
 
-// Webhook endpoint for external Cron services
+// Webhook endpoint for external Cron services (Keep-Alive)
 app.get('/api/webhook/cron', async (req, res) => {
   try {
     const config = await getBotConfig();
@@ -313,20 +313,14 @@ app.get('/api/webhook/cron', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Unauthorized: Invalid or missing secret parameter' });
     }
 
-    if (!config.isActive) {
-      return res.status(400).json({ success: false, error: 'Auto-posting is disabled in app settings.' });
-    }
-
-    console.log('External Webhook triggered: Generating and posting content...');
+    console.log('External Keep-Alive Webhook triggered. Server is awake.');
     
-    // We start the process and wait for it.
-    const postData = await generateAiPostData();
-    const publishResults = await publishToSocialMedia(postData, config);
-    
-    res.json({ success: true, message: 'Post generated and published successfully via webhook.', publishResults });
+    // We just return a success message. The internal node-cron will handle the actual posting
+    // because this ping keeps the Render server awake!
+    res.json({ success: true, message: 'Keep-alive ping received. Server is awake. Internal schedule will handle posting at your configured times.' });
   } catch (error: any) {
-    console.error('Webhook automated posting failed:', error);
-    res.status(500).json({ success: false, error: error.message || 'Webhook post generation failed' });
+    console.error('Webhook keep-alive failed:', error);
+    res.status(500).json({ success: false, error: error.message || 'Webhook failed' });
   }
 });
 
