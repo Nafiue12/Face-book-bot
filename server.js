@@ -43,19 +43,26 @@ async function getBotConfig() {
 async function saveBotConfig(config) {
   await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2), "utf-8");
 }
-async function getRecentFacebookPosts(fbPageId, accessToken) {
+var HISTORY_FILE = path.join(process.cwd(), "post-history.json");
+async function getPostHistory() {
   try {
-    if (!fbPageId || !accessToken) return [];
-    const url = `https://graph.facebook.com/v19.0/${fbPageId}/posts?limit=15&access_token=${accessToken}`;
-    const response = await fetch(url);
-    const data = await response.json();
-    if (data.data && Array.isArray(data.data)) {
-      return data.data.map((post) => post.message).filter(Boolean);
-    }
-  } catch (err) {
-    console.error("Error fetching recent FB posts:", err);
+    const data = await fs.readFile(HISTORY_FILE, "utf-8");
+    return JSON.parse(data);
+  } catch {
+    return [];
   }
-  return [];
+}
+async function saveToHistory(id) {
+  try {
+    const history = await getPostHistory();
+    if (!history.includes(id)) {
+      history.push(id);
+      if (history.length > 150) history.shift();
+      await fs.writeFile(HISTORY_FILE, JSON.stringify(history, null, 2), "utf-8");
+    }
+  } catch (error) {
+    console.error("Error saving to history:", error);
+  }
 }
 var FITNESS_LIBRARY = [
   {
@@ -108,23 +115,111 @@ var FITNESS_LIBRARY = [
     image_url: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1080&auto=format&fit=crop"
   }
 ];
-async function generateAiPostData(config) {
-  const currentConfig = config || await getBotConfig();
-  let availableFacts = [...FITNESS_LIBRARY];
-  if (currentConfig.fbPageId && currentConfig.accessToken) {
-    const recentPosts = await getRecentFacebookPosts(currentConfig.fbPageId, currentConfig.accessToken);
-    if (recentPosts.length > 0) {
-      availableFacts = FITNESS_LIBRARY.filter((item) => {
-        return !recentPosts.some((post) => post.includes(item.fact) || post.includes(item.caption));
-      });
-      if (availableFacts.length === 0) {
-        console.log("All facts have been used recently. Resetting the pool.");
-        availableFacts = [...FITNESS_LIBRARY];
+async function fetchFromReddit() {
+  const subreddits = ["Fitness", "nutrition", "bodyweightfitness"];
+  const randomSub = subreddits[Math.floor(Math.random() * subreddits.length)];
+  const response = await fetch(`https://www.reddit.com/r/${randomSub}/top.json?t=month&limit=30`, {
+    headers: { "User-Agent": "DailyGymFactBot/1.0" }
+  });
+  const data = await response.json();
+  const history = await getPostHistory();
+  if (data?.data?.children) {
+    const posts = data.data.children.sort(() => Math.random() - 0.5);
+    for (const child of posts) {
+      const post = child.data;
+      const postId = `reddit_${post.id}`;
+      if (!history.includes(postId) && !post.over_18 && post.title.length > 15) {
+        return {
+          id: postId,
+          fact: post.title,
+          caption: `Insights from the community! \u{1F4AA}
+
+${post.selftext ? post.selftext.substring(0, 150) + "..." : ""}`,
+          hashtags: `#${randomSub} #FitnessJourney #GymTips`,
+          comment_source: `https://reddit.com${post.permalink}`
+        };
       }
     }
   }
-  const randomIndex = Math.floor(Math.random() * availableFacts.length);
-  return availableFacts[randomIndex];
+  return null;
+}
+async function fetchFromZenQuotes() {
+  const response = await fetch("https://zenquotes.io/api/random");
+  const data = await response.json();
+  const history = await getPostHistory();
+  if (data && data.length > 0) {
+    const quote = data[0];
+    const quoteId = `quote_${Buffer.from(quote.q.substring(0, 15)).toString("base64")}`;
+    if (!history.includes(quoteId)) {
+      return {
+        id: quoteId,
+        fact: `"${quote.q}"
+- ${quote.a}`,
+        caption: "Stay motivated and keep pushing forward! \u{1F4AF}\u{1F525} Mindset is everything when it comes to hitting your goals.",
+        hashtags: "#Motivation #FitnessMindset #KeepGoing #GymMotivation",
+        comment_source: "https://zenquotes.io/"
+      };
+    }
+  }
+  return null;
+}
+async function fetchFromHealthNews() {
+  const response = await fetch("https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.sciencedaily.com%2Frss%2Fhealth_medicine%2Ffitness.xml");
+  const data = await response.json();
+  const history = await getPostHistory();
+  if (data.status === "ok" && data.items) {
+    const items = data.items.sort(() => Math.random() - 0.5);
+    for (const item of items) {
+      const newsId = `news_${Buffer.from(item.guid || item.title).toString("base64").substring(0, 20)}`;
+      if (!history.includes(newsId)) {
+        return {
+          id: newsId,
+          fact: `New Fitness Study: ${item.title}`,
+          caption: `Did you know? \u{1F914} 
+${item.description ? item.description.replace(/<[^>]*>?/gm, "").substring(0, 120) + "..." : "Fascinating new fitness research just dropped!"}
+
+Stay informed and keep growing! \u{1F4DA}\u{1F4AA}`,
+          hashtags: "#FitnessScience #HealthNews #FitnessResearch",
+          comment_source: item.link
+        };
+      }
+    }
+  }
+  return null;
+}
+async function generateAiPostData(config) {
+  const history = await getPostHistory();
+  const sources = [fetchFromReddit, fetchFromHealthNews, fetchFromZenQuotes];
+  sources.sort(() => Math.random() - 0.5);
+  let postData = null;
+  for (const sourceFn of sources) {
+    try {
+      postData = await sourceFn();
+      if (postData) break;
+    } catch (err) {
+      console.error(`Source fetch failed, trying next...`);
+    }
+  }
+  if (!postData) {
+    console.log("All APIs failed or returned duplicate content. Falling back to local library.");
+    let availableFacts = FITNESS_LIBRARY.filter((item) => {
+      const fallbackId = `fallback_${Buffer.from(item.fact.substring(0, 15)).toString("base64")}`;
+      return !history.includes(fallbackId);
+    });
+    if (availableFacts.length === 0) {
+      console.log("All fallback facts used! Resetting local pool.");
+      availableFacts = [...FITNESS_LIBRARY];
+    }
+    const randomIndex = Math.floor(Math.random() * availableFacts.length);
+    const selected = availableFacts[randomIndex];
+    postData = {
+      id: `fallback_${Buffer.from(selected.fact.substring(0, 15)).toString("base64")}`,
+      ...selected
+    };
+  }
+  const randomSeed = Math.floor(Math.random() * 1e4);
+  postData.image_url = `https://loremflickr.com/1080/1080/fitness,gym/all?lock=${randomSeed}`;
+  return postData;
 }
 async function publishToSocialMedia(postData, config) {
   const { fbPageId, igUserId, accessToken } = config;
@@ -200,6 +295,9 @@ ${postData.hashtags}`;
       console.error("Instagram posting failed:", e.message);
       results.errors.push(`Instagram: ${e.message}`);
     }
+  }
+  if ((results.fb || results.ig) && postData.id) {
+    await saveToHistory(postData.id);
   }
   return results;
 }
