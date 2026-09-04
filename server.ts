@@ -310,17 +310,16 @@ app.get('/api/webhook/cron', async (req, res) => {
     const providedSecret = req.query.secret;
 
     if (!config.webhookSecret || providedSecret !== config.webhookSecret) {
-      return res.status(401).json({ success: false, error: 'Unauthorized: Invalid or missing secret parameter' });
+      return res.status(200).send('NO');
     }
 
     console.log('External Keep-Alive Webhook triggered. Server is awake.');
     
-    // We just return a success message. The internal node-cron will handle the actual posting
-    // because this ping keeps the Render server awake!
-    res.json({ success: true, message: 'Keep-alive ping received. Server is awake. Internal schedule will handle posting at your configured times.' });
+    // Return an extremely tiny response to prevent cron-job.org from complaining about "output too large"
+    res.status(200).send('OK');
   } catch (error: any) {
     console.error('Webhook keep-alive failed:', error);
-    res.status(500).json({ success: false, error: error.message || 'Webhook failed' });
+    res.status(200).send('ERR');
   }
 });
 

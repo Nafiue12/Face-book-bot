@@ -257,18 +257,13 @@ app.get("/api/webhook/cron", async (req, res) => {
     const config = await getBotConfig();
     const providedSecret = req.query.secret;
     if (!config.webhookSecret || providedSecret !== config.webhookSecret) {
-      return res.status(401).json({ success: false, error: "Unauthorized: Invalid or missing secret parameter" });
+      return res.status(200).send("NO");
     }
-    if (!config.isActive) {
-      return res.status(400).json({ success: false, error: "Auto-posting is disabled in app settings." });
-    }
-    console.log("External Webhook triggered: Generating and posting content...");
-    const postData = await generateAiPostData();
-    const publishResults = await publishToSocialMedia(postData, config);
-    res.json({ success: true, message: "Post generated and published successfully via webhook.", publishResults });
+    console.log("External Keep-Alive Webhook triggered. Server is awake.");
+    res.status(200).send("OK");
   } catch (error) {
-    console.error("Webhook automated posting failed:", error);
-    res.status(500).json({ success: false, error: error.message || "Webhook post generation failed" });
+    console.error("Webhook keep-alive failed:", error);
+    res.status(200).send("ERR");
   }
 });
 app.post("/api/generate-post", async (req, res) => {
