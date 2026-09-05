@@ -139,15 +139,22 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Failed to publish post');
+        throw new Error(data.error || 'Failed to publish post');
       }
 
-      const data = await response.json();
       setPostData(data.postData);
-      setPublishSuccess(true);
-      setTimeout(() => setPublishSuccess(false), 5000);
+      
+      // Check for partial failures (e.g., Facebook succeeded, but Instagram failed)
+      if (data.results && data.results.errors && data.results.errors.length > 0) {
+        setError(`Partial Success: ${data.results.errors.join(' | ')}`);
+        // We still show the postData since part of it succeeded
+      } else {
+        setPublishSuccess(true);
+        setTimeout(() => setPublishSuccess(false), 5000);
+      }
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred during publishing.');
     } finally {
