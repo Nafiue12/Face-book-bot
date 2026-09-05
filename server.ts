@@ -93,7 +93,7 @@ async function getRecentFacebookPosts(fbPageId: string, accessToken: string): Pr
   return [];
 }
 
-// Local Library (No API Required)
+// Local Library (No API Required) - Fallback content covering diverse categories
 const FITNESS_LIBRARY = [
   {
     category: "Science",
@@ -112,7 +112,7 @@ const FITNESS_LIBRARY = [
     image_url: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1080&auto=format&fit=crop"
   },
   {
-    category: "Nutrition",
+    category: "Diet",
     fact: "Drinking enough water can boost your metabolic rate by up to 30% for about an hour.",
     caption: "Stay hydrated! 💧 It's not just about performance, it's about keeping your metabolism firing all day long. Drink up!",
     hashtags: "#Hydration #Metabolism #FitnessFuel #HealthyLifestyle",
@@ -120,7 +120,7 @@ const FITNESS_LIBRARY = [
     image_url: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=1080&auto=format&fit=crop"
   },
   {
-    category: "Science",
+    category: "Training Methods",
     fact: "Compound exercises (like squats and deadlifts) trigger a higher hormonal response (testosterone and growth hormone) than isolation exercises.",
     caption: "Want to grow? Stick to the basics! 📈 Compound lifts are the secret to unlocking your true potential.",
     hashtags: "#CompoundLifts #Squats #Deadlifts #MuscleGrowth",
@@ -128,7 +128,7 @@ const FITNESS_LIBRARY = [
     image_url: "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=1080&auto=format&fit=crop"
   },
   {
-    category: "Nutrition",
+    category: "Diet",
     fact: "Protein timing isn't as strict as we once thought. The 'anabolic window' lasts several hours, not just 30 minutes after your workout.",
     caption: "Take your time, enjoy your post-workout meal! 🥩 The '30-minute anabolic window' is a myth. Total daily protein matters most.",
     hashtags: "#NutritionFacts #Protein #GymMyths #FitnessScience",
@@ -136,7 +136,7 @@ const FITNESS_LIBRARY = [
     image_url: "https://images.unsplash.com/photo-1579722820308-d74e571900a9?q=80&w=1080&auto=format&fit=crop"
   },
   {
-    category: "Science",
+    category: "Training Methods",
     fact: "Active recovery (like light walking or cycling) clears blood lactate faster than complete rest after intense exercise.",
     caption: "Sore from yesterday? Don't just sit on the couch! 🚶‍♂️ Light movement speeds up recovery so you can hit it hard again.",
     hashtags: "#ActiveRecovery #FitnessTips #GymLife #Recovery",
@@ -150,12 +150,62 @@ const FITNESS_LIBRARY = [
     hashtags: "#Consistency #FitnessJourney #WorkoutMotivation",
     comment_source: "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/fitness/art-20048269",
     image_url: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1080&auto=format&fit=crop"
+  },
+  {
+    category: "Supplements",
+    fact: "Creatine monohydrate is one of the most researched and safest supplements available, proven to increase strength, power output, and muscle mass.",
+    caption: "Looking for an edge? Creatine is the real deal. 🚀 Fully backed by science for strength and power gains!",
+    hashtags: "#Supplements #Creatine #StrengthGains #ScienceBacked",
+    comment_source: "https://jissn.biomedcentral.com/articles/10.1186/s12970-017-0173-z",
+    image_url: "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?q=80&w=1080&auto=format&fit=crop"
+  },
+  {
+    category: "Supplements",
+    fact: "Caffeine before a workout doesn't just wake you up; it reduces your perceived exertion, meaning heavy weights literally feel lighter.",
+    caption: "Pre-workout power! ☕ Caffeine is scientifically proven to make your workouts feel easier so you can push harder.",
+    hashtags: "#PreWorkout #Caffeine #GymHacks #PerformanceBoost",
+    comment_source: "https://pubmed.ncbi.nlm.nih.gov/27474846/",
+    image_url: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1080&auto=format&fit=crop"
+  },
+  {
+    category: "Expert Suggestion",
+    fact: "Always prioritize form over weight. Ego lifting is the fastest path to an injury that could set your progress back by months.",
+    caption: "Leave your ego at the door! 🚪 Perfecting your form leads to better muscle activation and keeps you injury-free.",
+    hashtags: "#FormCheck #GymAdvice #InjuryPrevention #SmartTraining",
+    comment_source: "Certified Personal Trainer Consensus",
+    image_url: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=1080&auto=format&fit=crop"
+  },
+  {
+    category: "Diet",
+    fact: "Your body needs carbohydrates to replenish glycogen stores after an intense workout. Don't fear the carbs!",
+    caption: "Carbs are your friend! 🍚🍞 Replenishing your energy stores is crucial for recovery and tomorrow's performance.",
+    hashtags: "#Nutrition #Carbs #PostWorkout #HealthyDiet",
+    comment_source: "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6019055/",
+    image_url: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?q=80&w=1080&auto=format&fit=crop"
+  },
+  {
+    category: "Training Methods",
+    fact: "Progressive Overload is the fundamental law of muscle growth. You must continually increase weight, reps, or volume over time.",
+    caption: "If it doesn't challenge you, it doesn't change you! 📊 Keep tracking your lifts and pushing for that extra rep or pound.",
+    hashtags: "#ProgressiveOverload #MuscleBuilding #TrainingTips",
+    comment_source: "https://www.nsca.com/education/articles/kinetic-select/progressive-overload/",
+    image_url: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1080&auto=format&fit=crop"
   }
 ];
 
 async function fetchFromReddit(): Promise<any> {
-  const subreddits = ['Fitness', 'nutrition', 'bodyweightfitness'];
-  const randomSub = subreddits[Math.floor(Math.random() * subreddits.length)];
+  const redditSources = [
+    { sub: 'Fitness', cat: 'Community Insight' },
+    { sub: 'nutrition', cat: 'Diet' },
+    { sub: 'diet', cat: 'Diet' },
+    { sub: 'Supplements', cat: 'Supplements' },
+    { sub: 'bodyweightfitness', cat: 'Training Methods' },
+    { sub: 'weightlifting', cat: 'Training Methods' },
+    { sub: 'AdvancedFitness', cat: 'Science' }
+  ];
+  
+  const randomSource = redditSources[Math.floor(Math.random() * redditSources.length)];
+  const randomSub = randomSource.sub;
   
   const response = await fetch(`https://www.reddit.com/r/${randomSub}/top.json?t=month&limit=30`, {
     headers: { 'User-Agent': 'DailyGymFactBot/1.0' }
@@ -174,7 +224,7 @@ async function fetchFromReddit(): Promise<any> {
       if (!history.includes(postId) && !post.over_18 && post.title.length > 15) {
         return {
           id: postId,
-          category: "Community Insight",
+          category: randomSource.cat,
           fact: post.title,
           caption: `Insights from the community! 💪\n\n${post.selftext ? post.selftext.substring(0, 150) + '...' : ''}`,
           hashtags: `#${randomSub} #FitnessJourney #GymTips`,
@@ -182,6 +232,36 @@ async function fetchFromReddit(): Promise<any> {
         };
       }
     }
+  }
+  return null;
+}
+
+async function fetchFromWger(): Promise<any> {
+  try {
+    const offset = Math.floor(Math.random() * 200);
+    const response = await fetch(`https://wger.de/api/v2/exerciseinfo/?language=2&limit=20&offset=${offset}`);
+    const data = await response.json();
+    const history = await getPostHistory();
+    
+    if (data && data.results && data.results.length > 0) {
+      const exercises = data.results.sort(() => Math.random() - 0.5);
+      for (const ex of exercises) {
+        const exId = `wger_${ex.id}`;
+        if (!history.includes(exId) && ex.description) {
+          const cleanDesc = ex.description.replace(/<[^>]*>?/gm, '').substring(0, 150) + '...';
+          return {
+            id: exId,
+            category: "Training Methods",
+            fact: `Exercise Spotlight: ${ex.name}`,
+            caption: `Looking to mix up your routine? Try the ${ex.name}!\n\n${cleanDesc}\n\nTarget Muscles: ${ex.category?.name || 'Full Body'}. Let's get to work! 💪🏋️‍♂️`,
+            hashtags: "#TrainingMethods #WorkoutIdea #GymRoutine",
+            comment_source: "https://wger.de"
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error fetching from wger", err);
   }
   return null;
 }
@@ -239,7 +319,7 @@ async function generateAiPostData(config?: any): Promise<any> {
   const history = await getPostHistory();
   
   // List of our dynamic source functions
-  const sources = [fetchFromReddit, fetchFromHealthNews, fetchFromZenQuotes];
+  const sources = [fetchFromReddit, fetchFromHealthNews, fetchFromZenQuotes, fetchFromWger];
   
   // Shuffle the order of APIs so the content type changes randomly every time
   sources.sort(() => Math.random() - 0.5);
