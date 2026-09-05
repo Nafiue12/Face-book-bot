@@ -443,11 +443,16 @@ async function publishToSocialMedia(postData: any, config: any) {
       if (igPublishData.error) throw new Error(igPublishData.error.message);
 
       // Step C: Comment on Media
-      await fetch(`https://graph.facebook.com/v19.0/${igPublishData.id}/replies`, { // Note: IG uses replies/comments on media
+      const igCommentRes = await fetch(`https://graph.facebook.com/v19.0/${igPublishData.id}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: `Source: ${postData.comment_source}`, access_token: accessToken })
       });
+      const igCommentData = await igCommentRes.json();
+      if (igCommentData.error) {
+        console.error('Instagram comment failed:', igCommentData.error.message);
+      }
+      
       console.log('Successfully posted to Instagram');
       results.ig = true;
     } catch (e: any) {
