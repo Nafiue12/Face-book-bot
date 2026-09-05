@@ -26,6 +26,7 @@ export default function App() {
   const [settings, setSettings] = useState({
     isActive: false,
     scheduleTimes: ['09:00'],
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     fbPageId: '',
     igUserId: '',
     accessToken: '',
@@ -42,6 +43,9 @@ export default function App() {
           }
           if (!data.scheduleTimes) {
             data.scheduleTimes = ['09:00'];
+          }
+          if (!data.timezone) {
+            data.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
           }
           setSettings(prev => ({ ...prev, ...data }));
         }
@@ -283,7 +287,14 @@ export default function App() {
             <div className="flex flex-col gap-6">
               
               <div className="bg-orange-50 border border-orange-200 p-6 rounded-2xl">
-                <h3 className="text-sm font-bold text-orange-600 uppercase tracking-wide mb-2">Today's Fact</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-bold text-orange-600 uppercase tracking-wide">Today's Fact</h3>
+                  {postData.category && (
+                    <span className="bg-orange-200 text-orange-800 text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                      {postData.category}
+                    </span>
+                  )}
+                </div>
                 <p className="text-lg font-medium text-stone-900">{postData.fact}</p>
               </div>
 
@@ -379,6 +390,7 @@ export default function App() {
                         </div>
                       ))}
                     </div>
+                    <p className="text-xs text-stone-500 mt-2">Times are in your local timezone: <strong>{settings.timezone}</strong></p>
                   </div>
                   
                   {settings.webhookSecret && (

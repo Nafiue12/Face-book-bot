@@ -96,6 +96,7 @@ async function getRecentFacebookPosts(fbPageId: string, accessToken: string): Pr
 // Local Library (No API Required)
 const FITNESS_LIBRARY = [
   {
+    category: "Science",
     fact: "Muscle memory is real: Myonuclei gained during training remain even after you stop training, making it easier to regain lost muscle.",
     caption: "Don't stress if you took a break! Your muscles remember. 🧠💪 Get back in the gym and watch how fast you bounce back!",
     hashtags: "#FitnessFacts #MuscleMemory #GymMotivation #Comeback",
@@ -103,6 +104,7 @@ const FITNESS_LIBRARY = [
     image_url: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=1080&auto=format&fit=crop"
   },
   {
+    category: "Science",
     fact: "Lifting weights can improve your sleep quality. Studies show resistance training can help you fall asleep faster and sleep deeper.",
     caption: "Struggling to catch some Zzz's? Pick up some heavy weights! 🏋️‍♀️💤 A good workout is the best sleep aid.",
     hashtags: "#SleepBetter #WeightLifting #GymLife #FitnessTips",
@@ -110,6 +112,7 @@ const FITNESS_LIBRARY = [
     image_url: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1080&auto=format&fit=crop"
   },
   {
+    category: "Nutrition",
     fact: "Drinking enough water can boost your metabolic rate by up to 30% for about an hour.",
     caption: "Stay hydrated! 💧 It's not just about performance, it's about keeping your metabolism firing all day long. Drink up!",
     hashtags: "#Hydration #Metabolism #FitnessFuel #HealthyLifestyle",
@@ -117,6 +120,7 @@ const FITNESS_LIBRARY = [
     image_url: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=1080&auto=format&fit=crop"
   },
   {
+    category: "Science",
     fact: "Compound exercises (like squats and deadlifts) trigger a higher hormonal response (testosterone and growth hormone) than isolation exercises.",
     caption: "Want to grow? Stick to the basics! 📈 Compound lifts are the secret to unlocking your true potential.",
     hashtags: "#CompoundLifts #Squats #Deadlifts #MuscleGrowth",
@@ -124,6 +128,7 @@ const FITNESS_LIBRARY = [
     image_url: "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=1080&auto=format&fit=crop"
   },
   {
+    category: "Nutrition",
     fact: "Protein timing isn't as strict as we once thought. The 'anabolic window' lasts several hours, not just 30 minutes after your workout.",
     caption: "Take your time, enjoy your post-workout meal! 🥩 The '30-minute anabolic window' is a myth. Total daily protein matters most.",
     hashtags: "#NutritionFacts #Protein #GymMyths #FitnessScience",
@@ -131,6 +136,7 @@ const FITNESS_LIBRARY = [
     image_url: "https://images.unsplash.com/photo-1579722820308-d74e571900a9?q=80&w=1080&auto=format&fit=crop"
   },
   {
+    category: "Science",
     fact: "Active recovery (like light walking or cycling) clears blood lactate faster than complete rest after intense exercise.",
     caption: "Sore from yesterday? Don't just sit on the couch! 🚶‍♂️ Light movement speeds up recovery so you can hit it hard again.",
     hashtags: "#ActiveRecovery #FitnessTips #GymLife #Recovery",
@@ -138,6 +144,7 @@ const FITNESS_LIBRARY = [
     image_url: "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?q=80&w=1080&auto=format&fit=crop"
   },
   {
+    category: "Motivation",
     fact: "Consistency beats intensity. Research shows working out moderately 4-5 times a week yields better long-term heart health and habit formation than going all-out just once a week.",
     caption: "It's a marathon, not a sprint. 🏃‍♀️ Show up, do the work, and stay consistent. That's where the magic happens!",
     hashtags: "#Consistency #FitnessJourney #WorkoutMotivation",
@@ -167,6 +174,7 @@ async function fetchFromReddit(): Promise<any> {
       if (!history.includes(postId) && !post.over_18 && post.title.length > 15) {
         return {
           id: postId,
+          category: "Community Insight",
           fact: post.title,
           caption: `Insights from the community! 💪\n\n${post.selftext ? post.selftext.substring(0, 150) + '...' : ''}`,
           hashtags: `#${randomSub} #FitnessJourney #GymTips`,
@@ -190,6 +198,7 @@ async function fetchFromZenQuotes(): Promise<any> {
     if (!history.includes(quoteId)) {
       return {
           id: quoteId,
+          category: "Motivation",
           fact: `"${quote.q}"\n- ${quote.a}`,
           caption: "Stay motivated and keep pushing forward! 💯🔥 Mindset is everything when it comes to hitting your goals.",
           hashtags: "#Motivation #FitnessMindset #KeepGoing #GymMotivation",
@@ -213,6 +222,7 @@ async function fetchFromHealthNews(): Promise<any> {
       if (!history.includes(newsId)) {
         return {
           id: newsId,
+          category: "Science",
           fact: `New Fitness Study: ${item.title}`,
           caption: `Did you know? 🤔 \n${item.description ? item.description.replace(/<[^>]*>?/gm, '').substring(0, 120) + '...' : 'Fascinating new fitness research just dropped!'}\n\nStay informed and keep growing! 📚💪`,
           hashtags: "#FitnessScience #HealthNews #FitnessResearch",
@@ -388,17 +398,21 @@ function setupCronJob(config: any) {
       if (hour && minute) {
         // Cron format: minute hour * * *
         const cronExpression = `${minute} ${hour} * * *`;
-        console.log(`Setting up daily auto-post cron for ${hour}:${minute}`);
+        const tz = config.timezone || 'UTC';
+        console.log(`Setting up daily auto-post cron for ${hour}:${minute} in timezone ${tz}`);
         
         const task = cron.schedule(cronExpression, async () => {
-          console.log(`Cron triggered (${hour}:${minute}): Generating and posting content...`);
+          console.log(`Cron triggered (${hour}:${minute} ${tz}): Generating and posting content...`);
           try {
             const postData = await generateAiPostData();
             const currentConfig = await getBotConfig(); // get freshest config
             await publishToSocialMedia(postData, currentConfig);
           } catch (error) {
-            console.error(`Automated posting failed (${hour}:${minute}):`, error);
+            console.error(`Automated posting failed (${hour}:${minute} ${tz}):`, error);
           }
+        }, {
+          scheduled: true,
+          timezone: tz
         });
         currentTasks.push(task);
       }
