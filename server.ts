@@ -428,6 +428,11 @@ async function publishToSocialMedia(postData: any, config: any) {
       const igMediaData = await igMediaRes.json();
       if (igMediaData.error) throw new Error(igMediaData.error.message);
       
+      console.log('Instagram media container created. Waiting 8 seconds for Meta to process the image...');
+      // IMPORTANT: Meta downloads and processes the image asynchronously. 
+      // If we publish immediately, it throws "Media ID is not available".
+      await new Promise(resolve => setTimeout(resolve, 8000));
+      
       // Step B: Publish Media
       const igPublishRes = await fetch(`https://graph.facebook.com/v19.0/${igUserId}/media_publish`, {
         method: 'POST',
