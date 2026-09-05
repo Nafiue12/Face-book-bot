@@ -43,6 +43,7 @@ async function getBotConfig() {
       fbPageId: process.env.FB_PAGE_ID || '', 
       igUserId: process.env.IG_USER_ID || '', 
       accessToken: process.env.FB_ACCESS_TOKEN || '', 
+      timezone: process.env.TIMEZONE || 'UTC',
       webhookSecret: defaultSecret 
     };
   }
