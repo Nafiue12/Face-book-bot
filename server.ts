@@ -202,7 +202,15 @@ async function fetchFromReddit(): Promise<any> {
     { sub: 'Supplements', cat: 'Supplements' },
     { sub: 'bodyweightfitness', cat: 'Training Methods' },
     { sub: 'weightlifting', cat: 'Training Methods' },
-    { sub: 'AdvancedFitness', cat: 'Science' }
+    { sub: 'AdvancedFitness', cat: 'Science' },
+    { sub: 'yoga', cat: 'Yoga & Mobility' },
+    { sub: 'crossfit', cat: 'CrossFit' },
+    { sub: 'powerlifting', cat: 'Strength & Power' },
+    { sub: 'bodybuilding', cat: 'Bodybuilding' },
+    { sub: 'flexibility', cat: 'Yoga & Mobility' },
+    { sub: 'running', cat: 'Cardio & Endurance' },
+    { sub: 'fasting', cat: 'Diet & Fasting' },
+    { sub: 'HIIT', cat: 'Cardio & Endurance' }
   ];
   
   const randomSource = redditSources[Math.floor(Math.random() * redditSources.length)];
@@ -315,12 +323,93 @@ async function fetchFromHealthNews(): Promise<any> {
   return null;
 }
 
+async function fetchFromWikipedia(): Promise<any> {
+  const topics = [
+    'Muscle hypertrophy', 'Nutrition', 'Kettlebell', 'Yoga', 'Pilates',
+    'Deadlift', 'Squat (exercise)', 'Metabolism', 'Endurance training',
+    'High-intensity interval training', 'Plyometrics', 'Calisthenics',
+    'Delayed onset muscle soreness', 'Creatine', 'VO2 max', 'Biomechanics',
+    'Stretching', 'Core stability', 'Protein (nutrient)'
+  ];
+  
+  const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+  
+  try {
+    const response = await fetch(`https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=1&explaintext=1&titles=${encodeURIComponent(randomTopic)}`);
+    const data = await response.json();
+    const history = await getPostHistory();
+    
+    if (data && data.query && data.query.pages) {
+      const pages = Object.values(data.query.pages);
+      if (pages.length > 0) {
+        const page = pages[0] as any;
+        const pageId = `wiki_${page.pageid}`;
+        
+        if (!history.includes(pageId) && page.extract) {
+          const cleanExtract = page.extract.substring(0, 200) + '...';
+          return {
+            id: pageId,
+            category: "History & Facts",
+            fact: `Fitness Fact: ${randomTopic}`,
+            caption: `Did you know? 🧠\n\n${cleanExtract}\n\nNever stop learning about your body and training! 📖💪`,
+            hashtags: `#${randomTopic.replace(/[^a-zA-Z0-9]/g, '')} #FitnessFacts #GymKnowledge #Learn`,
+            comment_source: `https://en.wikipedia.org/wiki/${encodeURIComponent(randomTopic)}`
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error fetching from Wikipedia", err);
+  }
+  return null;
+}
+
+async function fetchFromMealDB(): Promise<any> {
+  const categories = ['Chicken', 'Seafood', 'Vegan', 'Vegetarian', 'Breakfast'];
+  const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+  
+  try {
+    const response = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?c=${randomCategory}`);
+    const data = await response.json();
+    const history = await getPostHistory();
+    
+    if (data && data.meals && data.meals.length > 0) {
+      const meals = data.meals.sort(() => Math.random() - 0.5);
+      
+      for (const meal of meals) {
+        const mealId = `mealdb_${meal.idMeal}`;
+        if (!history.includes(mealId)) {
+          // Fetch full recipe details
+          const detailRes = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${meal.idMeal}`);
+          const detailData = await detailRes.json();
+          if (detailData && detailData.meals && detailData.meals.length > 0) {
+            const recipe = detailData.meals[0];
+            const cleanInstructions = recipe.strInstructions ? recipe.strInstructions.substring(0, 150) + '...' : 'Check the link for full recipe!';
+            
+            return {
+              id: mealId,
+              category: "Healthy Recipes",
+              fact: `Recipe Idea: ${recipe.strMeal}`,
+              caption: `Fuel your body right! 🥗🍗\n\nTry making ${recipe.strMeal} for your next meal.\n\n${cleanInstructions}\n\nEat well to train well! 🧑‍🍳🍽️`,
+              hashtags: `#HealthyEating #${randomCategory} #FitnessFood #MealPrep`,
+              comment_source: recipe.strSource || `https://www.themealdb.com/meal.php?c=${meal.idMeal}`
+            };
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error fetching from MealDB", err);
+  }
+  return null;
+}
+
 // Main Content generator orchestrator
 async function generateAiPostData(config?: any): Promise<any> {
   const history = await getPostHistory();
   
   // List of our dynamic source functions
-  const sources = [fetchFromReddit, fetchFromHealthNews, fetchFromZenQuotes, fetchFromWger];
+  const sources = [fetchFromReddit, fetchFromHealthNews, fetchFromZenQuotes, fetchFromWger, fetchFromWikipedia, fetchFromMealDB];
   
   // Shuffle the order of APIs so the content type changes randomly every time
   sources.sort(() => Math.random() - 0.5);

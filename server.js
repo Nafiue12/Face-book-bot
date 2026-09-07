@@ -171,7 +171,15 @@ async function fetchFromReddit() {
     { sub: "Supplements", cat: "Supplements" },
     { sub: "bodyweightfitness", cat: "Training Methods" },
     { sub: "weightlifting", cat: "Training Methods" },
-    { sub: "AdvancedFitness", cat: "Science" }
+    { sub: "AdvancedFitness", cat: "Science" },
+    { sub: "yoga", cat: "Yoga & Mobility" },
+    { sub: "crossfit", cat: "CrossFit" },
+    { sub: "powerlifting", cat: "Strength & Power" },
+    { sub: "bodybuilding", cat: "Bodybuilding" },
+    { sub: "flexibility", cat: "Yoga & Mobility" },
+    { sub: "running", cat: "Cardio & Endurance" },
+    { sub: "fasting", cat: "Diet & Fasting" },
+    { sub: "HIIT", cat: "Cardio & Endurance" }
   ];
   const randomSource = redditSources[Math.floor(Math.random() * redditSources.length)];
   const randomSub = randomSource.sub;
@@ -279,9 +287,103 @@ Stay informed and keep growing! \u{1F4DA}\u{1F4AA}`,
   }
   return null;
 }
+async function fetchFromWikipedia() {
+  const topics = [
+    "Muscle hypertrophy",
+    "Nutrition",
+    "Kettlebell",
+    "Yoga",
+    "Pilates",
+    "Deadlift",
+    "Squat (exercise)",
+    "Metabolism",
+    "Endurance training",
+    "High-intensity interval training",
+    "Plyometrics",
+    "Calisthenics",
+    "Delayed onset muscle soreness",
+    "Creatine",
+    "VO2 max",
+    "Biomechanics",
+    "Stretching",
+    "Core stability",
+    "Protein (nutrient)"
+  ];
+  const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+  try {
+    const response = await fetch(`https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=1&explaintext=1&titles=${encodeURIComponent(randomTopic)}`);
+    const data = await response.json();
+    const history = await getPostHistory();
+    if (data && data.query && data.query.pages) {
+      const pages = Object.values(data.query.pages);
+      if (pages.length > 0) {
+        const page = pages[0];
+        const pageId = `wiki_${page.pageid}`;
+        if (!history.includes(pageId) && page.extract) {
+          const cleanExtract = page.extract.substring(0, 200) + "...";
+          return {
+            id: pageId,
+            category: "History & Facts",
+            fact: `Fitness Fact: ${randomTopic}`,
+            caption: `Did you know? \u{1F9E0}
+
+${cleanExtract}
+
+Never stop learning about your body and training! \u{1F4D6}\u{1F4AA}`,
+            hashtags: `#${randomTopic.replace(/[^a-zA-Z0-9]/g, "")} #FitnessFacts #GymKnowledge #Learn`,
+            comment_source: `https://en.wikipedia.org/wiki/${encodeURIComponent(randomTopic)}`
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error fetching from Wikipedia", err);
+  }
+  return null;
+}
+async function fetchFromMealDB() {
+  const categories = ["Chicken", "Seafood", "Vegan", "Vegetarian", "Breakfast"];
+  const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+  try {
+    const response = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?c=${randomCategory}`);
+    const data = await response.json();
+    const history = await getPostHistory();
+    if (data && data.meals && data.meals.length > 0) {
+      const meals = data.meals.sort(() => Math.random() - 0.5);
+      for (const meal of meals) {
+        const mealId = `mealdb_${meal.idMeal}`;
+        if (!history.includes(mealId)) {
+          const detailRes = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${meal.idMeal}`);
+          const detailData = await detailRes.json();
+          if (detailData && detailData.meals && detailData.meals.length > 0) {
+            const recipe = detailData.meals[0];
+            const cleanInstructions = recipe.strInstructions ? recipe.strInstructions.substring(0, 150) + "..." : "Check the link for full recipe!";
+            return {
+              id: mealId,
+              category: "Healthy Recipes",
+              fact: `Recipe Idea: ${recipe.strMeal}`,
+              caption: `Fuel your body right! \u{1F957}\u{1F357}
+
+Try making ${recipe.strMeal} for your next meal.
+
+${cleanInstructions}
+
+Eat well to train well! \u{1F9D1}\u200D\u{1F373}\u{1F37D}\uFE0F`,
+              hashtags: `#HealthyEating #${randomCategory} #FitnessFood #MealPrep`,
+              comment_source: recipe.strSource || `https://www.themealdb.com/meal.php?c=${meal.idMeal}`
+            };
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error fetching from MealDB", err);
+  }
+  return null;
+}
 async function generateAiPostData(config) {
   const history = await getPostHistory();
-  const sources = [fetchFromReddit, fetchFromHealthNews, fetchFromZenQuotes, fetchFromWger];
+  const sources = [fetchFromReddit, fetchFromHealthNews, fetchFromZenQuotes, fetchFromWger, fetchFromWikipedia, fetchFromMealDB];
   sources.sort(() => Math.random() - 0.5);
   let postData = null;
   for (const sourceFn of sources) {
@@ -368,6 +470,8 @@ ${postData.hashtags}`;
       });
       const igMediaData = await igMediaRes.json();
       if (igMediaData.error) throw new Error(igMediaData.error.message);
+      console.log("Instagram media container created. Waiting 8 seconds for Meta to process the image...");
+      await new Promise((resolve) => setTimeout(resolve, 8e3));
       const igPublishRes = await fetch(`https://graph.facebook.com/v19.0/${igUserId}/media_publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -375,12 +479,15 @@ ${postData.hashtags}`;
       });
       const igPublishData = await igPublishRes.json();
       if (igPublishData.error) throw new Error(igPublishData.error.message);
-      await fetch(`https://graph.facebook.com/v19.0/${igPublishData.id}/replies`, {
-        // Note: IG uses replies/comments on media
+      const igCommentRes = await fetch(`https://graph.facebook.com/v19.0/${igPublishData.id}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: `Source: ${postData.comment_source}`, access_token: accessToken })
       });
+      const igCommentData = await igCommentRes.json();
+      if (igCommentData.error) {
+        console.error("Instagram comment failed:", igCommentData.error.message);
+      }
       console.log("Successfully posted to Instagram");
       results.ig = true;
     } catch (e) {
