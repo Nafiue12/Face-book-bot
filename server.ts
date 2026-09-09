@@ -99,8 +99,8 @@ async function saveToHistory(id: string) {
     const history = await getPostHistory();
     if (!history.includes(id)) {
       history.push(id);
-      // Keep only last 150 items to prevent the file from growing infinitely
-      if (history.length > 150) history.shift();
+      // Keep a massive history to ensure no duplicates for a very long time
+      if (history.length > 5000) history.shift();
       await fs.writeFile(HISTORY_FILE, JSON.stringify(history, null, 2), 'utf-8');
     }
   } catch (error) {
@@ -240,7 +240,16 @@ async function fetchFromReddit(): Promise<any> {
     { sub: 'flexibility', cat: 'Yoga & Mobility' },
     { sub: 'running', cat: 'Cardio & Endurance' },
     { sub: 'fasting', cat: 'Diet & Fasting' },
-    { sub: 'HIIT', cat: 'Cardio & Endurance' }
+    { sub: 'HIIT', cat: 'Cardio & Endurance' },
+    { sub: 'sleep', cat: 'Recovery & Wellness' },
+    { sub: 'triathlon', cat: 'Cardio & Endurance' },
+    { sub: 'kettlebell', cat: 'Strength & Power' },
+    { sub: 'homefitness', cat: 'Home Workouts' },
+    { sub: 'martialarts', cat: 'Martial Arts' },
+    { sub: 'amateur_boxing', cat: 'Martial Arts' },
+    { sub: 'pilates', cat: 'Yoga & Mobility' },
+    { sub: 'mentalhealth', cat: 'Recovery & Wellness' },
+    { sub: 'longevity', cat: 'Science' }
   ];
   
   const randomSource = redditSources[Math.floor(Math.random() * redditSources.length)];
@@ -359,7 +368,11 @@ async function fetchFromWikipedia(): Promise<any> {
     'Deadlift', 'Squat (exercise)', 'Metabolism', 'Endurance training',
     'High-intensity interval training', 'Plyometrics', 'Calisthenics',
     'Delayed onset muscle soreness', 'Creatine', 'VO2 max', 'Biomechanics',
-    'Stretching', 'Core stability', 'Protein (nutrient)'
+    'Stretching', 'Core stability', 'Protein (nutrient)', 'Physical fitness',
+    'Aerobic exercise', 'Anaerobic exercise', 'Sleep and metabolism', 
+    'Cold-water immersion', 'Sports biomechanics', 'Kinesiology', 
+    'Human anatomy', 'Sauna', 'Fasting', 'Intermittent fasting',
+    'Exercise physiology', 'Sports psychology', 'Meditation'
   ];
   
   const randomTopic = topics[Math.floor(Math.random() * topics.length)];
@@ -482,44 +495,113 @@ async function generateAiPostData(config?: any): Promise<any> {
       "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5",
       "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e",
       "https://images.unsplash.com/photo-1507398941214-572c25f4b1dc",
-      "https://images.unsplash.com/photo-1526506114642-4f323a6f1165"
+      "https://images.unsplash.com/photo-1526506114642-4f323a6f1165",
+      "https://images.unsplash.com/photo-1517963879433-6ad2b056d712",
+      "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61",
+      "https://images.unsplash.com/photo-1574680088814-c9e8a10d8a4d"
     ],
     "Bodybuilding": [
       "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b",
       "https://images.unsplash.com/photo-1558611848-73f7eb4001a1",
       "https://images.unsplash.com/photo-1517838277536-f5f99be501cd",
-      "https://images.unsplash.com/photo-1574680096145-d05b474e2155"
+      "https://images.unsplash.com/photo-1574680096145-d05b474e2155",
+      "https://images.unsplash.com/photo-1528360983277-13d401cdc186",
+      "https://images.unsplash.com/photo-1605296867304-46d5465a13f1"
     ],
     "Yoga & Mobility": [
       "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b",
       "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0",
       "https://images.unsplash.com/photo-1575052814086-f385e2e2ad1b",
       "https://images.unsplash.com/photo-1506126613408-eca07ce68773",
-      "https://images.unsplash.com/photo-1518611012118-696072aa579a"
+      "https://images.unsplash.com/photo-1518611012118-696072aa579a",
+      "https://images.unsplash.com/photo-1552196563-552592596167",
+      "https://images.unsplash.com/photo-1603988363607-e1e4a66962c6"
     ],
     "Cardio & Endurance": [
       "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8",
       "https://images.unsplash.com/photo-1552674605-db6ffd4facb5",
       "https://images.unsplash.com/photo-1513593771513-7b58b6c4af38",
       "https://images.unsplash.com/photo-1530143311094-34d807799e8f",
-      "https://images.unsplash.com/photo-1461896836934-ffe145ab64c1"
+      "https://images.unsplash.com/photo-1461896836934-ffe145ab64c1",
+      "https://images.unsplash.com/photo-1502224562085-639556652f33",
+      "https://images.unsplash.com/photo-1536098561742-ca998e48cbcc"
     ],
     "Diet": [
       "https://images.unsplash.com/photo-1490645935967-10de6ba17061",
       "https://images.unsplash.com/photo-1512621776951-a57141f2eefd",
       "https://images.unsplash.com/photo-1498837167922-41c46b21c620",
-      "https://images.unsplash.com/photo-1493770348161-369560ae357d"
+      "https://images.unsplash.com/photo-1493770348161-369560ae357d",
+      "https://images.unsplash.com/photo-1505253758473-96b7015fcd40",
+      "https://images.unsplash.com/photo-1478144596228-3e499e327663"
     ],
     "Healthy Recipes": [
       "https://images.unsplash.com/photo-1482049016688-2d3e1b311543",
       "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
-      "https://images.unsplash.com/photo-1490645935967-10de6ba17061"
+      "https://images.unsplash.com/photo-1490645935967-10de6ba17061",
+      "https://images.unsplash.com/photo-1473093295043-cdd812d0e601",
+      "https://images.unsplash.com/photo-1498837167922-41c46b21c620",
+      "https://images.unsplash.com/photo-1546069901-ba9599a7e63c",
+      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd",
+      "https://images.unsplash.com/photo-1505253758473-96b7015fcd40",
+      "https://images.unsplash.com/photo-1493770348161-369560ae357d"
+    ],
+    "Recovery & Wellness": [
+      "https://images.unsplash.com/photo-1541892079-2475b1212bc0",
+      "https://images.unsplash.com/photo-1515023115689-589c33041d3c",
+      "https://images.unsplash.com/photo-1531259683007-016a7b628fc3",
+      "https://images.unsplash.com/photo-1512438248247-f0f2a5a8b7f0",
+      "https://images.unsplash.com/photo-1521714161819-15534968fc5f",
+      "https://images.unsplash.com/photo-1511295742362-92c96b1cf484",
+      "https://images.unsplash.com/photo-1517436073-3b1b1519fca9",
+      "https://images.unsplash.com/photo-1506126613408-eca07ce68773",
+      "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b"
+    ],
+    "Home Workouts": [
+      "https://images.unsplash.com/photo-1518611012118-696072aa579a",
+      "https://images.unsplash.com/photo-1598289431512-b97b0917affc",
+      "https://images.unsplash.com/photo-1576678927484-cc907957088c",
+      "https://images.unsplash.com/photo-1513593771513-7b58b6c4af38",
+      "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b",
+      "https://images.unsplash.com/photo-1599058917212-d750089bc07e",
+      "https://images.unsplash.com/photo-1599058918144-1ffabb6ab9a0"
+    ],
+    "Martial Arts": [
+      "https://images.unsplash.com/photo-1555597673-b21d5c935865",
+      "https://images.unsplash.com/photo-1591117207239-788bf8de6c3b",
+      "https://images.unsplash.com/photo-1599552611573-8b7762c2f822",
+      "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61",
+      "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5",
+      "https://images.unsplash.com/photo-1555597673-b21d5c935865"
+    ],
+    "Science": [
+      "https://images.unsplash.com/photo-1576086213369-97a306d36557",
+      "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69",
+      "https://images.unsplash.com/photo-1530026405186-ed1f139313f8",
+      "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158",
+      "https://images.unsplash.com/photo-1614935151651-0bea6508abb0",
+      "https://images.unsplash.com/photo-1579684385127-1ef15d508118",
+      "https://images.unsplash.com/photo-1532094349884-543bc11b234d"
+    ],
+    "Motivation": [
+      "https://images.unsplash.com/photo-1552674605-db6ffd4facb5",
+      "https://images.unsplash.com/photo-1507398941214-572c25f4b1dc",
+      "https://images.unsplash.com/photo-1517836357463-d25dfeac3438",
+      "https://images.unsplash.com/photo-1461896836934-ffe145ab64c1",
+      "https://images.unsplash.com/photo-1526506114642-4f323a6f1165",
+      "https://images.unsplash.com/photo-1517838277536-f5f99be501cd",
+      "https://images.unsplash.com/photo-1534438327276-14e5300c3a48"
     ],
     "General": [
       "https://images.unsplash.com/photo-1517836357463-d25dfeac3438",
       "https://images.unsplash.com/photo-1579722820308-d74e571900a9",
       "https://images.unsplash.com/photo-1554244933-d876deb6b2ff",
-      "https://images.unsplash.com/photo-1540497077202-7c8a3999166f"
+      "https://images.unsplash.com/photo-1540497077202-7c8a3999166f",
+      "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e",
+      "https://images.unsplash.com/photo-1534438327276-14e5300c3a48",
+      "https://images.unsplash.com/photo-1517963879433-6ad2b056d712",
+      "https://images.unsplash.com/photo-1552674605-db6ffd4facb5",
+      "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b",
+      "https://images.unsplash.com/photo-1534438097544-b0a6493b821f"
     ]
   };
 
@@ -529,13 +611,34 @@ async function generateAiPostData(config?: any): Promise<any> {
   
   if (cat.includes("Strength") || cat.includes("CrossFit") || cat.includes("Training")) imageList = curatedImages["Strength & Power"];
   else if (cat.includes("Bodybuilding")) imageList = curatedImages["Bodybuilding"];
-  else if (cat.includes("Yoga") || cat.includes("Mobility")) imageList = curatedImages["Yoga & Mobility"];
+  else if (cat.includes("Yoga") || cat.includes("Mobility") || cat.includes("Pilates")) imageList = curatedImages["Yoga & Mobility"];
   else if (cat.includes("Cardio") || cat.includes("Endurance")) imageList = curatedImages["Cardio & Endurance"];
   else if (cat.includes("Diet") || cat.includes("Nutrition") || cat.includes("Fasting")) imageList = curatedImages["Diet"];
-  else if (cat.includes("Recipe")) imageList = curatedImages["Healthy Recipes"];
+  else if (cat.includes("Recipe") || cat.includes("Meal")) imageList = curatedImages["Healthy Recipes"];
+  else if (cat.includes("Recovery") || cat.includes("Wellness") || cat.includes("Sleep") || cat.includes("Mental")) imageList = curatedImages["Recovery & Wellness"];
+  else if (cat.includes("Home Workouts") || cat.includes("Calisthenics")) imageList = curatedImages["Home Workouts"];
+  else if (cat.includes("Martial Arts") || cat.includes("Boxing")) imageList = curatedImages["Martial Arts"];
+  else if (cat.includes("Science") || cat.includes("Research") || cat.includes("Anatomy") || cat.includes("Physiology")) imageList = curatedImages["Science"];
+  else if (cat.includes("Motivation") || cat.includes("Mindset")) imageList = curatedImages["Motivation"];
 
-  // Pick random image from list and apply formatting for perfect 1080x1080 crop
-  const baseImageUrl = imageList[Math.floor(Math.random() * imageList.length)];
+  // Filter out images we have already used
+  let availableImages = imageList.filter(url => !history.includes(url));
+  
+  if (availableImages.length === 0) {
+    console.log(`All images in category used. Falling back to General.`);
+    availableImages = curatedImages["General"].filter(url => !history.includes(url));
+  }
+  
+  if (availableImages.length === 0) {
+    console.log(`All images used! Reusing from General pool.`);
+    availableImages = curatedImages["General"]; 
+  }
+
+  // Pick random image from available list
+  const baseImageUrl = availableImages[Math.floor(Math.random() * availableImages.length)];
+  
+  // Save the base image URL as image_id so we can mark it as used in history
+  postData.image_id = baseImageUrl;
   postData.image_url = `${baseImageUrl}?q=80&w=1080&h=1080&auto=format&fit=crop&crop=faces,entropy&uid=${postData.id}`;
   
   return postData;
@@ -662,6 +765,9 @@ async function publishToSocialMedia(postData: any, config: any) {
   
   if ((results.fb || results.ig) && postData.id) {
     await saveToHistory(postData.id);
+    if (postData.image_id) {
+      await saveToHistory(postData.image_id);
+    }
   }
   
   return results;
