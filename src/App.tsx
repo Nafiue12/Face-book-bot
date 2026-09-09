@@ -30,6 +30,7 @@ export default function App() {
     fbPageId: '',
     igUserId: '',
     accessToken: '',
+    makeWebhookUrl: '',
     webhookSecret: ''
   });
 
@@ -424,6 +425,14 @@ export default function App() {
                       </div>
                     </div>
                   )}
+
+                  <div>
+                    <label className="block text-sm font-semibold text-stone-700 mb-1.5">Make.com Webhook URL (Facebook Bypass)</label>
+                    <input type="text" placeholder="https://hook.us1.make.com/..." value={settings.makeWebhookUrl} onChange={e => setSettings({ ...settings, makeWebhookUrl: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors text-sm" />
+                    <p className="text-[11px] text-stone-500 mt-1.5">
+                      Bypasses Meta's verification entirely. If provided, Facebook posts will be sent here instead of the Graph API.
+                    </p>
+                  </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-stone-700 mb-1.5">Facebook Page ID</label>

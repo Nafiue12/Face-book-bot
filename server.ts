@@ -12,6 +12,24 @@ import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
 
+// Helper function to prevent cut-off sentences
+function getFullSentences(text: string, maxLen: number = 400): string {
+  if (!text) return '';
+  let cleanText = text.replace(/<[^>]*>?/gm, '').replace(/\n/g, ' ').trim();
+  if (cleanText.length <= maxLen) return cleanText;
+  
+  const substring = cleanText.substring(0, maxLen);
+  const lastPunc = Math.max(substring.lastIndexOf('.'), substring.lastIndexOf('!'), substring.lastIndexOf('?'));
+  
+  // If we found a punctuation mark reasonably far into the string, cut there.
+  if (lastPunc > maxLen * 0.5) {
+    return substring.substring(0, lastPunc + 1);
+  }
+  
+  // Fallback if no punctuation is found
+  return substring + '...';
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const CONFIG_FILE = path.join(process.cwd(), 'bot-config.json');
@@ -34,16 +52,28 @@ async function getBotConfig() {
       parsed.webhookSecret = crypto.randomBytes(16).toString('hex');
       await fs.writeFile(CONFIG_FILE, JSON.stringify(parsed, null, 2), 'utf-8');
     }
+    
+    // Override with Environment Variables (Useful for Render/Cloud Deployments)
+    if (process.env.MAKE_WEBHOOK_URL) parsed.makeWebhookUrl = process.env.MAKE_WEBHOOK_URL;
+    if (process.env.FB_PAGE_ID) parsed.fbPageId = process.env.FB_PAGE_ID;
+    if (process.env.IG_USER_ID) parsed.igUserId = process.env.IG_USER_ID;
+    if (process.env.META_ACCESS_TOKEN) parsed.accessToken = process.env.META_ACCESS_TOKEN;
+    if (process.env.BOT_IS_ACTIVE === 'true') parsed.isActive = true;
+    if (process.env.BOT_SCHEDULE_TIMES) {
+      parsed.scheduleTimes = process.env.BOT_SCHEDULE_TIMES.split(',');
+    }
+    
     return parsed;
   } catch (error) {
     const defaultSecret = process.env.WEBHOOK_SECRET || crypto.randomBytes(16).toString('hex');
     return { 
-      isActive: process.env.AUTO_POST_ACTIVE === 'true' || false, 
-      scheduleTimes: process.env.SCHEDULE_TIMES ? process.env.SCHEDULE_TIMES.split(',') : ['09:00'], 
+      isActive: process.env.AUTO_POST_ACTIVE === 'true' || process.env.BOT_IS_ACTIVE === 'true' || false, 
+      scheduleTimes: process.env.SCHEDULE_TIMES ? process.env.SCHEDULE_TIMES.split(',') : (process.env.BOT_SCHEDULE_TIMES ? process.env.BOT_SCHEDULE_TIMES.split(',') : ['09:00']), 
       fbPageId: process.env.FB_PAGE_ID || '', 
       igUserId: process.env.IG_USER_ID || '', 
-      accessToken: process.env.FB_ACCESS_TOKEN || '', 
+      accessToken: process.env.FB_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || '', 
       timezone: process.env.TIMEZONE || 'UTC',
+      makeWebhookUrl: process.env.MAKE_WEBHOOK_URL || '',
       webhookSecret: defaultSecret 
     };
   }
@@ -235,7 +265,7 @@ async function fetchFromReddit(): Promise<any> {
           id: postId,
           category: randomSource.cat,
           fact: post.title,
-          caption: `Insights from the community! 💪\n\n${post.selftext ? post.selftext.substring(0, 150) + '...' : ''}`,
+          caption: `Insights from the community! 💪\n\n${post.selftext ? getFullSentences(post.selftext, 300) : ''}`,
           hashtags: `#${randomSub} #FitnessJourney #GymTips`,
           comment_source: `https://reddit.com${post.permalink}`
         };
@@ -257,7 +287,7 @@ async function fetchFromWger(): Promise<any> {
       for (const ex of exercises) {
         const exId = `wger_${ex.id}`;
         if (!history.includes(exId) && ex.description) {
-          const cleanDesc = ex.description.replace(/<[^>]*>?/gm, '').substring(0, 150) + '...';
+          const cleanDesc = getFullSentences(ex.description, 250);
           return {
             id: exId,
             category: "Training Methods",
@@ -313,7 +343,7 @@ async function fetchFromHealthNews(): Promise<any> {
           id: newsId,
           category: "Science",
           fact: `New Fitness Study: ${item.title}`,
-          caption: `Did you know? 🤔 \n${item.description ? item.description.replace(/<[^>]*>?/gm, '').substring(0, 120) + '...' : 'Fascinating new fitness research just dropped!'}\n\nStay informed and keep growing! 📚💪`,
+          caption: `Did you know? 🤔 \n${item.description ? getFullSentences(item.description, 250) : 'Fascinating new fitness research just dropped!'}\n\nStay informed and keep growing! 📚💪`,
           hashtags: "#FitnessScience #HealthNews #FitnessResearch",
           comment_source: item.link
         }
@@ -346,7 +376,7 @@ async function fetchFromWikipedia(): Promise<any> {
         const pageId = `wiki_${page.pageid}`;
         
         if (!history.includes(pageId) && page.extract) {
-          const cleanExtract = page.extract.substring(0, 200) + '...';
+          const cleanExtract = getFullSentences(page.extract, 300);
           return {
             id: pageId,
             category: "History & Facts",
@@ -384,7 +414,7 @@ async function fetchFromMealDB(): Promise<any> {
           const detailData = await detailRes.json();
           if (detailData && detailData.meals && detailData.meals.length > 0) {
             const recipe = detailData.meals[0];
-            const cleanInstructions = recipe.strInstructions ? recipe.strInstructions.substring(0, 150) + '...' : 'Check the link for full recipe!';
+            const cleanInstructions = recipe.strInstructions ? getFullSentences(recipe.strInstructions, 300) : 'Check the link for full recipe!';
             
             return {
               id: mealId,
@@ -506,7 +536,7 @@ async function generateAiPostData(config?: any): Promise<any> {
 
   // Pick random image from list and apply formatting for perfect 1080x1080 crop
   const baseImageUrl = imageList[Math.floor(Math.random() * imageList.length)];
-  postData.image_url = `${baseImageUrl}?q=80&w=1080&h=1080&auto=format&fit=crop&crop=faces,entropy`;
+  postData.image_url = `${baseImageUrl}?q=80&w=1080&h=1080&auto=format&fit=crop&crop=faces,entropy&uid=${postData.id}`;
   
   return postData;
 }
@@ -521,7 +551,28 @@ async function publishToSocialMedia(postData: any, config: any) {
   const results = { fb: false, ig: false, errors: [] as string[] };
 
   // 1. Post to Facebook Page
-  if (fbPageId) {
+  if (config.makeWebhookUrl) {
+    try {
+      console.log('Sending Facebook post to Make.com webhook bypass...');
+      const webhookRes = await fetch(config.makeWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_url: imageUrl,
+          message: fullCaption,
+          comment: `Source: ${postData.comment_source}`
+        })
+      });
+      if (!webhookRes.ok) {
+        throw new Error(`Webhook returned status ${webhookRes.status}`);
+      }
+      console.log('Successfully sent to Make.com webhook');
+      results.fb = true;
+    } catch (e: any) {
+      console.error('Make.com webhook failed:', e.message);
+      results.errors.push(`Facebook (Make.com): ${e.message}`);
+    }
+  } else if (fbPageId) {
     try {
       // Validate token identity
       const verifyRes = await fetch(`https://graph.facebook.com/v19.0/me?access_token=${accessToken}`);
@@ -714,11 +765,11 @@ app.post('/api/generate-post', async (req, res) => {
 app.post('/api/publish-now', async (req, res) => {
   try {
     const config = await getBotConfig();
-    if (!config.fbPageId && !config.igUserId) {
-      return res.status(400).json({ error: 'Please configure Facebook Page ID or Instagram Account ID in Settings first.' });
+    if (!config.fbPageId && !config.igUserId && !config.makeWebhookUrl) {
+      return res.status(400).json({ error: 'Please configure Facebook Page ID, Instagram Account ID, or a Make.com Webhook in Settings first.' });
     }
-    if (!config.accessToken) {
-      return res.status(400).json({ error: 'Please configure Meta Access Token in Settings first.' });
+    if (!config.accessToken && !config.makeWebhookUrl) {
+      return res.status(400).json({ error: 'Please configure Meta Access Token or Make.com Webhook in Settings first.' });
     }
     
     const postData = await generateAiPostData();
