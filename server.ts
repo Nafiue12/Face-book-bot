@@ -445,9 +445,68 @@ async function generateAiPostData(config?: any): Promise<any> {
     };
   }
   
-  // Always attach a fresh, unique dynamic image based on a random seed
-  const randomSeed = Math.floor(Math.random() * 10000);
-  postData.image_url = `https://loremflickr.com/1080/1080/fitness,gym/all?lock=${randomSeed}`;
+  // Attach a high-quality curated image based on category
+  const curatedImages: Record<string, string[]> = {
+    "Strength & Power": [
+      "https://images.unsplash.com/photo-1534438327276-14e5300c3a48",
+      "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5",
+      "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e",
+      "https://images.unsplash.com/photo-1507398941214-572c25f4b1dc",
+      "https://images.unsplash.com/photo-1526506114642-4f323a6f1165"
+    ],
+    "Bodybuilding": [
+      "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b",
+      "https://images.unsplash.com/photo-1558611848-73f7eb4001a1",
+      "https://images.unsplash.com/photo-1517838277536-f5f99be501cd",
+      "https://images.unsplash.com/photo-1574680096145-d05b474e2155"
+    ],
+    "Yoga & Mobility": [
+      "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b",
+      "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0",
+      "https://images.unsplash.com/photo-1575052814086-f385e2e2ad1b",
+      "https://images.unsplash.com/photo-1506126613408-eca07ce68773",
+      "https://images.unsplash.com/photo-1518611012118-696072aa579a"
+    ],
+    "Cardio & Endurance": [
+      "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8",
+      "https://images.unsplash.com/photo-1552674605-db6ffd4facb5",
+      "https://images.unsplash.com/photo-1513593771513-7b58b6c4af38",
+      "https://images.unsplash.com/photo-1530143311094-34d807799e8f",
+      "https://images.unsplash.com/photo-1461896836934-ffe145ab64c1"
+    ],
+    "Diet": [
+      "https://images.unsplash.com/photo-1490645935967-10de6ba17061",
+      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd",
+      "https://images.unsplash.com/photo-1498837167922-41c46b21c620",
+      "https://images.unsplash.com/photo-1493770348161-369560ae357d"
+    ],
+    "Healthy Recipes": [
+      "https://images.unsplash.com/photo-1482049016688-2d3e1b311543",
+      "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
+      "https://images.unsplash.com/photo-1490645935967-10de6ba17061"
+    ],
+    "General": [
+      "https://images.unsplash.com/photo-1517836357463-d25dfeac3438",
+      "https://images.unsplash.com/photo-1579722820308-d74e571900a9",
+      "https://images.unsplash.com/photo-1554244933-d876deb6b2ff",
+      "https://images.unsplash.com/photo-1540497077202-7c8a3999166f"
+    ]
+  };
+
+  // Map category to best image list
+  let imageList = curatedImages["General"];
+  const cat = postData.category || "";
+  
+  if (cat.includes("Strength") || cat.includes("CrossFit") || cat.includes("Training")) imageList = curatedImages["Strength & Power"];
+  else if (cat.includes("Bodybuilding")) imageList = curatedImages["Bodybuilding"];
+  else if (cat.includes("Yoga") || cat.includes("Mobility")) imageList = curatedImages["Yoga & Mobility"];
+  else if (cat.includes("Cardio") || cat.includes("Endurance")) imageList = curatedImages["Cardio & Endurance"];
+  else if (cat.includes("Diet") || cat.includes("Nutrition") || cat.includes("Fasting")) imageList = curatedImages["Diet"];
+  else if (cat.includes("Recipe")) imageList = curatedImages["Healthy Recipes"];
+
+  // Pick random image from list and apply formatting for perfect 1080x1080 crop
+  const baseImageUrl = imageList[Math.floor(Math.random() * imageList.length)];
+  postData.image_url = `${baseImageUrl}?q=80&w=1080&h=1080&auto=format&fit=crop&crop=faces,entropy`;
   
   return postData;
 }
