@@ -30,6 +30,7 @@ function getFullSentences(text: string, maxLen: number = 400): string {
   return substring + '...';
 }
 
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const CONFIG_FILE = path.join(process.cwd(), 'bot-config.json');
@@ -255,8 +256,12 @@ async function fetchFromReddit(): Promise<any> {
   const randomSource = redditSources[Math.floor(Math.random() * redditSources.length)];
   const randomSub = randomSource.sub;
   
-  const response = await fetch(`https://www.reddit.com/r/${randomSub}/top.json?t=month&limit=30`, {
-    headers: { 'User-Agent': 'DailyGymFactBot/1.0' }
+  const sorts = ['hot', 'new', 'top', 'rising'];
+  const randomSort = sorts[Math.floor(Math.random() * sorts.length)];
+  const timeQuery = randomSort === 'top' ? '&t=all' : '';
+  
+  const response = await fetch(`https://www.reddit.com/r/${randomSub}/${randomSort}.json?limit=100${timeQuery}`, {
+    headers: { 'User-Agent': 'DailyGymFactBot/2.0' }
   });
   const data = await response.json();
   const history = await getPostHistory();
@@ -639,7 +644,7 @@ async function generateAiPostData(config?: any): Promise<any> {
   
   // Save the base image URL as image_id so we can mark it as used in history
   postData.image_id = baseImageUrl;
-  postData.image_url = `${baseImageUrl}?q=80&w=1080&h=1080&auto=format&fit=crop&crop=faces,entropy&uid=${postData.id}`;
+  postData.image_url = `${baseImageUrl}?q=80&w=1080&h=1080&auto=format&fit=crop&crop=faces,entropy&uid=${postData.id}-${Date.now()}`;
   
   return postData;
 }
