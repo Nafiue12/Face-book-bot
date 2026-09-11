@@ -644,7 +644,7 @@ async function generateAiPostData(config?: any): Promise<any> {
   
   // Save the base image URL as image_id so we can mark it as used in history
   postData.image_id = baseImageUrl;
-  postData.image_url = `${baseImageUrl}?q=80&w=1080&h=1080&auto=format&fit=crop&crop=faces,entropy&uid=${postData.id}-${Date.now()}`;
+  postData.image_url = `${baseImageUrl}?fm=jpg&q=80&w=1080&h=1080&fit=crop&crop=faces`;
   
   return postData;
 }
