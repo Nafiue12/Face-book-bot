@@ -665,7 +665,7 @@ async function generateAiPostData(config?: any): Promise<any> {
   
   // Save the base image URL as image_id so we can mark it as used in history
   postData.image_id = baseImageUrl;
-  postData.image_url = `${baseImageUrl}?fm=jpg&q=80&w=1080&h=1080&fit=crop&crop=faces`;
+  postData.image_url = `${baseImageUrl}?ixlib=rb-4.0.3&q=80&fm=jpg&crop=faces&fit=crop&h=1080&w=1080`;
   
   return postData;
 }
@@ -751,7 +751,12 @@ async function publishToSocialMedia(postData: any, config: any) {
       const igMediaRes = await fetch(`https://graph.facebook.com/v19.0/${igUserId}/media`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image_url: imageUrl, caption: fullCaption, access_token: accessToken })
+        body: JSON.stringify({ 
+          image_url: imageUrl, 
+          caption: fullCaption, 
+          media_type: 'IMAGE', // Force Meta to treat this as a static image
+          access_token: accessToken 
+        })
       });
       const igMediaData = await igMediaRes.json();
       if (igMediaData.error) throw new Error(igMediaData.error.message);
