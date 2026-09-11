@@ -18,16 +18,37 @@ function getFullSentences(text: string, maxLen: number = 400): string {
   let cleanText = text.replace(/<[^>]*>?/gm, '').replace(/\n/g, ' ').trim();
   if (cleanText.length <= maxLen) return cleanText;
   
-  const substring = cleanText.substring(0, maxLen);
-  const lastPunc = Math.max(substring.lastIndexOf('.'), substring.lastIndexOf('!'), substring.lastIndexOf('?'));
+  // Use regex to find complete sentences
+  const sentenceRegex = /[^.!?]+[.!?]+/g;
+  const sentences = cleanText.match(sentenceRegex);
   
-  // If we found a punctuation mark reasonably far into the string, cut there.
-  if (lastPunc > maxLen * 0.5) {
-    return substring.substring(0, lastPunc + 1);
+  // If no punctuation exists, safely truncate at the last word
+  if (!sentences) {
+    const cut = cleanText.substring(0, maxLen);
+    const lastSpace = cut.lastIndexOf(' ');
+    return lastSpace > 0 ? cut.substring(0, lastSpace) + '...' : cut + '...';
   }
   
-  // Fallback if no punctuation is found
-  return substring + '...';
+  let result = '';
+  for (const sentence of sentences) {
+    // If we already have text and adding this sentence makes it way too long, stop.
+    if (result.length > 0 && result.length + sentence.length > maxLen + 50) {
+      break;
+    }
+    result += sentence;
+    if (result.length >= maxLen) {
+      break;
+    }
+  }
+  
+  // If the very first sentence is monstrously long, truncate it safely
+  if (result.length > maxLen + 150) {
+    const cut = result.substring(0, maxLen);
+    const lastSpace = cut.lastIndexOf(' ');
+    return lastSpace > 0 ? cut.substring(0, lastSpace) + '...' : cut + '...';
+  }
+  
+  return result.trim();
 }
 
 
