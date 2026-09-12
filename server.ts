@@ -683,11 +683,14 @@ async function publishToSocialMedia(postData: any, config: any) {
   if (config.makeWebhookUrl) {
     try {
       console.log('Sending Facebook post to Make.com webhook bypass...');
+      // Wrap URL in wsrv.nl proxy to guarantee Make.com and Facebook see a clean .jpg file stream
+      const makeImageUrl = `https://wsrv.nl/?url=${encodeURIComponent(imageUrl.replace('https://', ''))}&output=jpg`;
+      
       const webhookRes = await fetch(config.makeWebhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          image_url: imageUrl,
+          image_url: makeImageUrl,
           message: fullCaption,
           comment: `Source: ${postData.comment_source}`
         })
@@ -715,10 +718,11 @@ async function publishToSocialMedia(postData: any, config: any) {
         throw new Error(`Token Identity Mismatch! This token belongs to "${verifyData.name}" (ID: ${verifyData.id}), but your Settings Page ID is ${fbPageId}. If "${verifyData.name}" is your personal name, you are still using a User Token. You MUST copy the token that appears AFTER you select your Page from the Graph API Explorer dropdown.`);
       }
 
+      const safeFbImageUrl = `https://wsrv.nl/?url=${encodeURIComponent(imageUrl.replace('https://', ''))}&output=jpg`;
       const fbRes = await fetch(`https://graph.facebook.com/v19.0/${fbPageId}/photos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: imageUrl, message: fullCaption, access_token: accessToken })
+        body: JSON.stringify({ url: safeFbImageUrl, message: fullCaption, access_token: accessToken })
       });
       const fbData = await fbRes.json();
       if (fbData.error) {
