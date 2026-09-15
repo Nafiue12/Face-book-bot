@@ -675,6 +675,11 @@ async function publishToSocialMedia(postData: any, config: any) {
   const { fbPageId, igUserId, accessToken } = config;
   const imageUrl = postData.image_url;
   const fullCaption = `${postData.fact}\n\n${postData.caption}\n\n${postData.hashtags}`;
+  
+  // Use our self-hosted proxy so the URL ends in ".jpg" strictly.
+  // We use process.env.APP_URL which points to our public Cloud Run deployment url
+  const appUrl = process.env.APP_URL || 'https://ais-pre-fm5ac4f2watnddkhlbnouf-78601244508.asia-southeast1.run.app';
+  const proxyImageUrl = `${appUrl}/api/proxy.jpg?url=${encodeURIComponent(imageUrl)}`;
 
   console.log('Initiating automated post to social media...');
   const results = { fb: false, ig: false, errors: [] as string[] };
@@ -688,7 +693,7 @@ async function publishToSocialMedia(postData: any, config: any) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          image_url: imageUrl,
+          image_url: proxyImageUrl,
           message: fullCaption,
           comment: `Source: ${postData.comment_source}`
         })
@@ -719,7 +724,7 @@ async function publishToSocialMedia(postData: any, config: any) {
       const fbRes = await fetch(`https://graph.facebook.com/v19.0/${fbPageId}/photos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: imageUrl, message: fullCaption, access_token: accessToken })
+        body: JSON.stringify({ url: proxyImageUrl, message: fullCaption, access_token: accessToken })
       });
       const fbData = await fbRes.json();
       if (fbData.error) {
@@ -897,6 +902,32 @@ app.post('/api/generate-post', async (req, res) => {
   } catch (error: any) {
     console.error('Error generating post:', error);
     res.status(500).json({ error: error.message || 'Failed to generate post' });
+  }
+});
+
+// Self-hosted Image Proxy to satisfy strict clients like Make.com and Facebook
+// By using a URL that literally ends in ".jpg", they are forced to treat it as an image file.
+app.get('/api/proxy.jpg', async (req, res) => {
+  const url = req.query.url as string;
+  if (!url) {
+    return res.status(400).send('Missing url parameter');
+  }
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+    // Facebook scraper spoof protection:
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.send(buffer);
+  } catch (error) {
+    console.error('Self-hosted image proxy error:', error);
+    res.status(500).send('Error fetching image');
   }
 });
 
