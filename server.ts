@@ -680,7 +680,9 @@ async function publishToSocialMedia(postData: any, config: any) {
   // We MUST use the public Shared App URL (ais-pre) because external services cannot bypass the dev auth proxy.
   let appUrl = process.env.APP_URL || 'https://ais-pre-fm5ac4f2watnddkhlbnouf-78601244508.asia-southeast1.run.app';
   appUrl = appUrl.replace('ais-dev-', 'ais-pre-');
-  const proxyImageUrl = `${appUrl}/api/proxy.jpg?url=${encodeURIComponent(imageUrl)}`;
+  
+  // Use public wsrv proxy with /image.jpg in the PATH so Facebook Graph API strictly accepts the extension.
+  const proxyImageUrl = `https://wsrv.nl/image.jpg?url=${encodeURIComponent(imageUrl.replace('https://', ''))}&output=jpg`;
 
   console.log('Initiating automated post to social media...');
   const results = { fb: false, ig: false, errors: [] as string[] };
@@ -903,32 +905,6 @@ app.post('/api/generate-post', async (req, res) => {
   } catch (error: any) {
     console.error('Error generating post:', error);
     res.status(500).json({ error: error.message || 'Failed to generate post' });
-  }
-});
-
-// Self-hosted Image Proxy to satisfy strict clients like Make.com and Facebook
-// By using a URL that literally ends in ".jpg", they are forced to treat it as an image file.
-app.get('/api/proxy.jpg', async (req, res) => {
-  const url = req.query.url as string;
-  if (!url) {
-    return res.status(400).send('Missing url parameter');
-  }
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.statusText}`);
-    }
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    
-    res.setHeader('Content-Type', 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=31536000');
-    // Facebook scraper spoof protection:
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.send(buffer);
-  } catch (error) {
-    console.error('Self-hosted image proxy error:', error);
-    res.status(500).send('Error fetching image');
   }
 });
 
