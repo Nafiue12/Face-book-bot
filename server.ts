@@ -677,8 +677,9 @@ async function publishToSocialMedia(postData: any, config: any) {
   const fullCaption = `${postData.fact}\n\n${postData.caption}\n\n${postData.hashtags}`;
   
   // Use our self-hosted proxy so the URL ends in ".jpg" strictly.
-  // We use process.env.APP_URL which points to our public Cloud Run deployment url
-  const appUrl = process.env.APP_URL || 'https://ais-pre-fm5ac4f2watnddkhlbnouf-78601244508.asia-southeast1.run.app';
+  // We MUST use the public Shared App URL (ais-pre) because external services cannot bypass the dev auth proxy.
+  let appUrl = process.env.APP_URL || 'https://ais-pre-fm5ac4f2watnddkhlbnouf-78601244508.asia-southeast1.run.app';
+  appUrl = appUrl.replace('ais-dev-', 'ais-pre-');
   const proxyImageUrl = `${appUrl}/api/proxy.jpg?url=${encodeURIComponent(imageUrl)}`;
 
   console.log('Initiating automated post to social media...');
