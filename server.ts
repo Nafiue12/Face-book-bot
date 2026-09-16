@@ -665,7 +665,8 @@ async function generateAiPostData(config?: any): Promise<any> {
   
   // Save the base image URL as image_id so we can mark it as used in history
   postData.image_id = baseImageUrl;
-  postData.image_url = `${baseImageUrl}?ixlib=rb-4.0.3&q=80&fm=jpg&crop=faces&fit=crop&h=1080&w=1080`;
+  // Trick Make.com's regex validator by appending &ext=.jpg at the very end. Unsplash ignores it, but Make.com sees .jpg
+  postData.image_url = `${baseImageUrl}?ixlib=rb-4.0.3&q=80&fm=jpg&crop=faces&fit=crop&h=1080&w=1080&ext=.jpg`;
   
   return postData;
 }
@@ -675,14 +676,6 @@ async function publishToSocialMedia(postData: any, config: any) {
   const { fbPageId, igUserId, accessToken } = config;
   const imageUrl = postData.image_url;
   const fullCaption = `${postData.fact}\n\n${postData.caption}\n\n${postData.hashtags}`;
-  
-  // Use our self-hosted proxy so the URL ends in ".jpg" strictly.
-  // We MUST use the public Shared App URL (ais-pre) because external services cannot bypass the dev auth proxy.
-  let appUrl = process.env.APP_URL || 'https://ais-pre-fm5ac4f2watnddkhlbnouf-78601244508.asia-southeast1.run.app';
-  appUrl = appUrl.replace('ais-dev-', 'ais-pre-');
-  
-  // Use public wsrv proxy with /image.jpg in the PATH so Facebook Graph API strictly accepts the extension.
-  const proxyImageUrl = `https://wsrv.nl/image.jpg?url=${encodeURIComponent(imageUrl.replace('https://', ''))}&output=jpg`;
 
   console.log('Initiating automated post to social media...');
   const results = { fb: false, ig: false, errors: [] as string[] };
@@ -696,7 +689,7 @@ async function publishToSocialMedia(postData: any, config: any) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          image_url: proxyImageUrl,
+          image_url: imageUrl,
           message: fullCaption,
           comment: `Source: ${postData.comment_source}`
         })
@@ -727,7 +720,7 @@ async function publishToSocialMedia(postData: any, config: any) {
       const fbRes = await fetch(`https://graph.facebook.com/v19.0/${fbPageId}/photos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: proxyImageUrl, message: fullCaption, access_token: accessToken })
+        body: JSON.stringify({ url: imageUrl, message: fullCaption, access_token: accessToken })
       });
       const fbData = await fbRes.json();
       if (fbData.error) {
