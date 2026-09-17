@@ -668,7 +668,7 @@ async function generateAiPostData(config?: any): Promise<any> {
   // Route through a fast public image proxy that specifically places /image.jpg in the URL path.
   // This completely bypasses Facebook Graph API Error 324 and Make.com's URL extension validation.
   const cleanUrl = baseImageUrl.replace(/^https?:\/\//, '');
-  postData.image_url = `https://wsrv.nl/image.jpg?url=${cleanUrl}&w=1080&h=1080&fit=cover&output=jpg`;
+  postData.image_url = `https://wsrv.nl/image.jpg?url=${cleanUrl}&w=1080&h=1080&fit=cover&output=jpg&ext=.jpg`;
   
   return postData;
 }
@@ -833,14 +833,20 @@ function setupCronJob(config: any) {
         console.log(`Setting up daily auto-post cron for ${hour}:${minute} in timezone ${tz}`);
         
         const task = cron.schedule(cronExpression, async () => {
-          console.log(`Cron triggered (${hour}:${minute} ${tz}): Generating and posting content...`);
-          try {
-            const postData = await generateAiPostData();
-            const currentConfig = await getBotConfig(); // get freshest config
-            await publishToSocialMedia(postData, currentConfig);
-          } catch (error) {
-            console.error(`Automated posting failed (${hour}:${minute} ${tz}):`, error);
-          }
+          console.log(`Cron triggered (${hour}:${minute} ${tz}): Waiting for jitter delay to prevent API throttling on the hour...`);
+          // Random delay between 15 and 90 seconds to avoid the "top of the hour" global API throttling spike on Unsplash/wsrv.nl
+          const jitterDelayMs = Math.floor(Math.random() * 75000) + 15000;
+          
+          setTimeout(async () => {
+            console.log(`Jitter complete (${jitterDelayMs}ms). Generating and posting content...`);
+            try {
+              const postData = await generateAiPostData();
+              const currentConfig = await getBotConfig(); // get freshest config
+              await publishToSocialMedia(postData, currentConfig);
+            } catch (error) {
+              console.error(`Automated posting failed (${hour}:${minute} ${tz}):`, error);
+            }
+          }, jitterDelayMs);
         }, {
           scheduled: true,
           timezone: tz
