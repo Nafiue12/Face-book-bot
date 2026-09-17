@@ -665,8 +665,10 @@ async function generateAiPostData(config?: any): Promise<any> {
   
   // Save the base image URL as image_id so we can mark it as used in history
   postData.image_id = baseImageUrl;
-  // Trick Make.com's regex validator by appending &ext=.jpg at the very end. Unsplash ignores it, but Make.com sees .jpg
-  postData.image_url = `${baseImageUrl}?ixlib=rb-4.0.3&q=80&fm=jpg&crop=faces&fit=crop&h=1080&w=1080&ext=.jpg`;
+  // Route through a fast public image proxy that specifically places /image.jpg in the URL path.
+  // This completely bypasses Facebook Graph API Error 324 and Make.com's URL extension validation.
+  const cleanUrl = baseImageUrl.replace(/^https?:\/\//, '');
+  postData.image_url = `https://wsrv.nl/image.jpg?url=${cleanUrl}&w=1080&h=1080&fit=cover&output=jpg`;
   
   return postData;
 }
