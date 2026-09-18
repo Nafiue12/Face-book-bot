@@ -35,10 +35,30 @@ export default function App() {
   });
 
   useEffect(() => {
+    // Check localStorage cache first
+    const cached = localStorage.getItem('fitpost_bot_settings');
+    let localSettings: any = null;
+    if (cached) {
+      try {
+        localSettings = JSON.parse(cached);
+      } catch {}
+    }
+
     fetch('/api/config')
       .then(res => res.json())
-      .then(data => {
+      .then(async data => {
         if (data && typeof data === 'object') {
+          // If server settings are empty (e.g. fresh container restart), restore from localStorage
+          if (localSettings && !data.makeWebhookUrl && localSettings.makeWebhookUrl) {
+            data = { ...data, ...localSettings };
+            // Sync back to server
+            fetch('/api/config', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data),
+            }).catch(() => {});
+          }
+
           if (data.scheduleTime && !data.scheduleTimes) {
             data.scheduleTimes = [data.scheduleTime];
           }
@@ -49,9 +69,15 @@ export default function App() {
             data.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
           }
           setSettings(prev => ({ ...prev, ...data }));
+          localStorage.setItem('fitpost_bot_settings', JSON.stringify(data));
         }
       })
-      .catch(err => console.error('Failed to load settings:', err));
+      .catch(err => {
+        console.error('Failed to load settings from server:', err);
+        if (localSettings) {
+          setSettings(prev => ({ ...prev, ...localSettings }));
+        }
+      });
   }, []);
 
   const addTime = () => {
@@ -74,6 +100,7 @@ export default function App() {
     setSettingsLoading(true);
     setSettingsSaved(false);
     try {
+      localStorage.setItem('fitpost_bot_settings', JSON.stringify(settings));
       const res = await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

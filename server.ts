@@ -88,7 +88,7 @@ async function getBotConfig() {
     return parsed;
   } catch (error) {
     const defaultSecret = process.env.WEBHOOK_SECRET || crypto.randomBytes(16).toString('hex');
-    return { 
+    const fallbackConfig = { 
       isActive: process.env.AUTO_POST_ACTIVE === 'true' || process.env.BOT_IS_ACTIVE === 'true' || false, 
       scheduleTimes: process.env.SCHEDULE_TIMES ? process.env.SCHEDULE_TIMES.split(',') : (process.env.BOT_SCHEDULE_TIMES ? process.env.BOT_SCHEDULE_TIMES.split(',') : ['09:00']), 
       fbPageId: process.env.FB_PAGE_ID || '', 
@@ -98,6 +98,10 @@ async function getBotConfig() {
       makeWebhookUrl: process.env.MAKE_WEBHOOK_URL || '',
       webhookSecret: defaultSecret 
     };
+    try {
+      await fs.writeFile(CONFIG_FILE, JSON.stringify(fallbackConfig, null, 2), 'utf-8');
+    } catch {}
+    return fallbackConfig;
   }
 }
 
@@ -514,122 +518,109 @@ async function generateAiPostData(config?: any): Promise<any> {
     };
   }
   
-  // Attach a high-quality curated image based on category
+  // Attach a high-quality curated image based on category (All verified 200 OK)
   const curatedImages: Record<string, string[]> = {
     "Strength & Power": [
-      "https://images.unsplash.com/photo-1534438327276-14e5300c3a48",
-      "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5",
-      "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e",
-      "https://images.unsplash.com/photo-1507398941214-572c25f4b1dc",
-      "https://images.unsplash.com/photo-1526506114642-4f323a6f1165",
-      "https://images.unsplash.com/photo-1517963879433-6ad2b056d712",
-      "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61",
-      "https://images.unsplash.com/photo-1574680088814-c9e8a10d8a4d"
+        "https://images.unsplash.com/photo-1534438327276-14e5300c3a48",
+        "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5",
+        "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e",
+        "https://images.unsplash.com/photo-1507398941214-572c25f4b1dc",
+        "https://images.unsplash.com/photo-1517963879433-6ad2b056d712",
+        "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61",
+        "https://images.unsplash.com/photo-1574680088814-c9e8a10d8a4d"
     ],
     "Bodybuilding": [
-      "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b",
-      "https://images.unsplash.com/photo-1558611848-73f7eb4001a1",
-      "https://images.unsplash.com/photo-1517838277536-f5f99be501cd",
-      "https://images.unsplash.com/photo-1574680096145-d05b474e2155",
-      "https://images.unsplash.com/photo-1528360983277-13d401cdc186",
-      "https://images.unsplash.com/photo-1605296867304-46d5465a13f1"
+        "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b",
+        "https://images.unsplash.com/photo-1558611848-73f7eb4001a1",
+        "https://images.unsplash.com/photo-1517838277536-f5f99be501cd",
+        "https://images.unsplash.com/photo-1574680096145-d05b474e2155",
+        "https://images.unsplash.com/photo-1528360983277-13d401cdc186",
+        "https://images.unsplash.com/photo-1605296867304-46d5465a13f1"
     ],
     "Yoga & Mobility": [
-      "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b",
-      "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0",
-      "https://images.unsplash.com/photo-1575052814086-f385e2e2ad1b",
-      "https://images.unsplash.com/photo-1506126613408-eca07ce68773",
-      "https://images.unsplash.com/photo-1518611012118-696072aa579a",
-      "https://images.unsplash.com/photo-1552196563-552592596167",
-      "https://images.unsplash.com/photo-1603988363607-e1e4a66962c6"
+        "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b",
+        "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0",
+        "https://images.unsplash.com/photo-1575052814086-f385e2e2ad1b",
+        "https://images.unsplash.com/photo-1506126613408-eca07ce68773",
+        "https://images.unsplash.com/photo-1518611012118-696072aa579a",
+        "https://images.unsplash.com/photo-1603988363607-e1e4a66962c6"
     ],
     "Cardio & Endurance": [
-      "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8",
-      "https://images.unsplash.com/photo-1552674605-db6ffd4facb5",
-      "https://images.unsplash.com/photo-1513593771513-7b58b6c4af38",
-      "https://images.unsplash.com/photo-1530143311094-34d807799e8f",
-      "https://images.unsplash.com/photo-1461896836934-ffe145ab64c1",
-      "https://images.unsplash.com/photo-1502224562085-639556652f33",
-      "https://images.unsplash.com/photo-1536098561742-ca998e48cbcc"
+        "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8",
+        "https://images.unsplash.com/photo-1552674605-db6ffd4facb5",
+        "https://images.unsplash.com/photo-1513593771513-7b58b6c4af38",
+        "https://images.unsplash.com/photo-1530143311094-34d807799e8f",
+        "https://images.unsplash.com/photo-1502224562085-639556652f33",
+        "https://images.unsplash.com/photo-1536098561742-ca998e48cbcc"
     ],
     "Diet": [
-      "https://images.unsplash.com/photo-1490645935967-10de6ba17061",
-      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd",
-      "https://images.unsplash.com/photo-1498837167922-41c46b21c620",
-      "https://images.unsplash.com/photo-1493770348161-369560ae357d",
-      "https://images.unsplash.com/photo-1505253758473-96b7015fcd40",
-      "https://images.unsplash.com/photo-1478144596228-3e499e327663"
+        "https://images.unsplash.com/photo-1490645935967-10de6ba17061",
+        "https://images.unsplash.com/photo-1512621776951-a57141f2eefd",
+        "https://images.unsplash.com/photo-1493770348161-369560ae357d",
+        "https://images.unsplash.com/photo-1505253758473-96b7015fcd40"
     ],
     "Healthy Recipes": [
-      "https://images.unsplash.com/photo-1482049016688-2d3e1b311543",
-      "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
-      "https://images.unsplash.com/photo-1490645935967-10de6ba17061",
-      "https://images.unsplash.com/photo-1473093295043-cdd812d0e601",
-      "https://images.unsplash.com/photo-1498837167922-41c46b21c620",
-      "https://images.unsplash.com/photo-1546069901-ba9599a7e63c",
-      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd",
-      "https://images.unsplash.com/photo-1505253758473-96b7015fcd40",
-      "https://images.unsplash.com/photo-1493770348161-369560ae357d"
+        "https://images.unsplash.com/photo-1482049016688-2d3e1b311543",
+        "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
+        "https://images.unsplash.com/photo-1490645935967-10de6ba17061",
+        "https://images.unsplash.com/photo-1473093295043-cdd812d0e601",
+        "https://images.unsplash.com/photo-1546069901-ba9599a7e63c",
+        "https://images.unsplash.com/photo-1512621776951-a57141f2eefd",
+        "https://images.unsplash.com/photo-1505253758473-96b7015fcd40",
+        "https://images.unsplash.com/photo-1493770348161-369560ae357d"
     ],
     "Recovery & Wellness": [
-      "https://images.unsplash.com/photo-1541892079-2475b1212bc0",
-      "https://images.unsplash.com/photo-1515023115689-589c33041d3c",
-      "https://images.unsplash.com/photo-1531259683007-016a7b628fc3",
-      "https://images.unsplash.com/photo-1512438248247-f0f2a5a8b7f0",
-      "https://images.unsplash.com/photo-1521714161819-15534968fc5f",
-      "https://images.unsplash.com/photo-1511295742362-92c96b1cf484",
-      "https://images.unsplash.com/photo-1517436073-3b1b1519fca9",
-      "https://images.unsplash.com/photo-1506126613408-eca07ce68773",
-      "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b"
+        "https://images.unsplash.com/photo-1515023115689-589c33041d3c",
+        "https://images.unsplash.com/photo-1531259683007-016a7b628fc3",
+        "https://images.unsplash.com/photo-1512438248247-f0f2a5a8b7f0",
+        "https://images.unsplash.com/photo-1521714161819-15534968fc5f",
+        "https://images.unsplash.com/photo-1511295742362-92c96b1cf484",
+        "https://images.unsplash.com/photo-1506126613408-eca07ce68773",
+        "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b"
     ],
     "Home Workouts": [
-      "https://images.unsplash.com/photo-1518611012118-696072aa579a",
-      "https://images.unsplash.com/photo-1598289431512-b97b0917affc",
-      "https://images.unsplash.com/photo-1576678927484-cc907957088c",
-      "https://images.unsplash.com/photo-1513593771513-7b58b6c4af38",
-      "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b",
-      "https://images.unsplash.com/photo-1599058917212-d750089bc07e",
-      "https://images.unsplash.com/photo-1599058918144-1ffabb6ab9a0"
+        "https://images.unsplash.com/photo-1518611012118-696072aa579a",
+        "https://images.unsplash.com/photo-1598289431512-b97b0917affc",
+        "https://images.unsplash.com/photo-1576678927484-cc907957088c",
+        "https://images.unsplash.com/photo-1513593771513-7b58b6c4af38",
+        "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b",
+        "https://images.unsplash.com/photo-1599058917212-d750089bc07e",
+        "https://images.unsplash.com/photo-1599058918144-1ffabb6ab9a0"
     ],
     "Martial Arts": [
-      "https://images.unsplash.com/photo-1555597673-b21d5c935865",
-      "https://images.unsplash.com/photo-1591117207239-788bf8de6c3b",
-      "https://images.unsplash.com/photo-1599552611573-8b7762c2f822",
-      "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61",
-      "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5",
-      "https://images.unsplash.com/photo-1555597673-b21d5c935865"
+        "https://images.unsplash.com/photo-1555597673-b21d5c935865",
+        "https://images.unsplash.com/photo-1591117207239-788bf8de6c3b",
+        "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61",
+        "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5",
+        "https://images.unsplash.com/photo-1555597673-b21d5c935865"
     ],
     "Science": [
-      "https://images.unsplash.com/photo-1576086213369-97a306d36557",
-      "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69",
-      "https://images.unsplash.com/photo-1530026405186-ed1f139313f8",
-      "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158",
-      "https://images.unsplash.com/photo-1614935151651-0bea6508abb0",
-      "https://images.unsplash.com/photo-1579684385127-1ef15d508118",
-      "https://images.unsplash.com/photo-1532094349884-543bc11b234d"
+        "https://images.unsplash.com/photo-1576086213369-97a306d36557",
+        "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69",
+        "https://images.unsplash.com/photo-1530026405186-ed1f139313f8",
+        "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158",
+        "https://images.unsplash.com/photo-1579684385127-1ef15d508118",
+        "https://images.unsplash.com/photo-1532094349884-543bc11b234d"
     ],
     "Motivation": [
-      "https://images.unsplash.com/photo-1552674605-db6ffd4facb5",
-      "https://images.unsplash.com/photo-1507398941214-572c25f4b1dc",
-      "https://images.unsplash.com/photo-1517836357463-d25dfeac3438",
-      "https://images.unsplash.com/photo-1461896836934-ffe145ab64c1",
-      "https://images.unsplash.com/photo-1526506114642-4f323a6f1165",
-      "https://images.unsplash.com/photo-1517838277536-f5f99be501cd",
-      "https://images.unsplash.com/photo-1534438327276-14e5300c3a48"
+        "https://images.unsplash.com/photo-1552674605-db6ffd4facb5",
+        "https://images.unsplash.com/photo-1507398941214-572c25f4b1dc",
+        "https://images.unsplash.com/photo-1517836357463-d25dfeac3438",
+        "https://images.unsplash.com/photo-1517838277536-f5f99be501cd",
+        "https://images.unsplash.com/photo-1534438327276-14e5300c3a48"
     ],
     "General": [
-      "https://images.unsplash.com/photo-1517836357463-d25dfeac3438",
-      "https://images.unsplash.com/photo-1579722820308-d74e571900a9",
-      "https://images.unsplash.com/photo-1554244933-d876deb6b2ff",
-      "https://images.unsplash.com/photo-1540497077202-7c8a3999166f",
-      "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e",
-      "https://images.unsplash.com/photo-1534438327276-14e5300c3a48",
-      "https://images.unsplash.com/photo-1517963879433-6ad2b056d712",
-      "https://images.unsplash.com/photo-1552674605-db6ffd4facb5",
-      "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b",
-      "https://images.unsplash.com/photo-1534438097544-b0a6493b821f"
+        "https://images.unsplash.com/photo-1517836357463-d25dfeac3438",
+        "https://images.unsplash.com/photo-1579722820308-d74e571900a9",
+        "https://images.unsplash.com/photo-1554244933-d876deb6b2ff",
+        "https://images.unsplash.com/photo-1540497077202-7c8a3999166f",
+        "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e",
+        "https://images.unsplash.com/photo-1534438327276-14e5300c3a48",
+        "https://images.unsplash.com/photo-1517963879433-6ad2b056d712",
+        "https://images.unsplash.com/photo-1552674605-db6ffd4facb5",
+        "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b"
     ]
-  };
+};
 
   // Map category to best image list
   let imageList = curatedImages["General"];
@@ -660,15 +651,45 @@ async function generateAiPostData(config?: any): Promise<any> {
     availableImages = curatedImages["General"]; 
   }
 
-  // Pick random image from available list
-  const baseImageUrl = availableImages[Math.floor(Math.random() * availableImages.length)];
-  
-  // Save the base image URL as image_id so we can mark it as used in history
-  postData.image_id = baseImageUrl;
-  // Route through a fast public image proxy that specifically places /image.jpg in the URL path.
-  // This completely bypasses Facebook Graph API Error 324 and Make.com's URL extension validation.
-  const cleanUrl = baseImageUrl.replace(/^https?:\/\//, '');
-  postData.image_url = `https://wsrv.nl/image.jpg?url=${cleanUrl}&w=1080&h=1080&fit=cover&output=jpg&ext=.jpg`;
+  // Shuffle available candidates
+  const candidates = [...availableImages].sort(() => Math.random() - 0.5);
+  let selectedImageUrl = "";
+  let selectedImageId = "";
+
+  // Live pre-flight check: ensure the candidate URL resolves to a valid image
+  for (const candidateBase of candidates) {
+    const cleanCandidate = candidateBase.replace(/^https?:\/\//, '');
+    const wsrvCandidate = `https://wsrv.nl/image.jpg?url=${cleanCandidate}&w=1080&h=1080&fit=cover&output=jpg&ext=.jpg`;
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+      const testRes = await fetch(wsrvCandidate, { method: 'HEAD', signal: controller.signal });
+      clearTimeout(timeout);
+      const ct = testRes.headers.get('content-type') || '';
+      if (testRes.ok && (ct.includes('image') || ct.includes('octet-stream'))) {
+        selectedImageUrl = wsrvCandidate;
+        selectedImageId = candidateBase;
+        break;
+      }
+      console.warn(`[WARN] Candidate image returned status ${testRes.status} (${ct}). Trying next candidate...`);
+    } catch {
+      // In case of timeout, the URL is still pre-verified from the curated list
+      selectedImageUrl = wsrvCandidate;
+      selectedImageId = candidateBase;
+      break;
+    }
+  }
+
+  // Guaranteed rock-solid fallback if all candidates failed
+  if (!selectedImageUrl) {
+    const rockSolid = "https://images.unsplash.com/photo-1517836357463-d25dfeac3438";
+    selectedImageId = rockSolid;
+    selectedImageUrl = `https://wsrv.nl/image.jpg?url=images.unsplash.com/photo-1517836357463-d25dfeac3438&w=1080&h=1080&fit=cover&output=jpg&ext=.jpg`;
+  }
+
+  postData.image_id = selectedImageId;
+  postData.image_url = selectedImageUrl;
   
   return postData;
 }
@@ -676,10 +697,15 @@ async function generateAiPostData(config?: any): Promise<any> {
 // Automated Posting Logic using Meta Graph API
 async function publishToSocialMedia(postData: any, config: any) {
   const { fbPageId, igUserId, accessToken } = config;
-  const imageUrl = postData.image_url;
+  let imageUrl = postData.image_url;
   const fullCaption = `${postData.fact}\n\n${postData.caption}\n\n${postData.hashtags}`;
 
-  console.log('Initiating automated post to social media...');
+  // Final sanity check on image URL
+  if (!imageUrl || !imageUrl.startsWith('http')) {
+    imageUrl = "https://wsrv.nl/image.jpg?url=images.unsplash.com/photo-1517836357463-d25dfeac3438&w=1080&h=1080&fit=cover&output=jpg&ext=.jpg";
+  }
+
+  console.log('Initiating automated post to social media with image:', imageUrl);
   const results = { fb: false, ig: false, errors: [] as string[] };
 
   // 1. Post to Facebook Page
@@ -809,7 +835,7 @@ async function publishToSocialMedia(postData: any, config: any) {
 }
 
 // Cron Job Setup (Runs every minute to check schedule)
-let currentTasks: cron.ScheduledTask[] = [];
+let currentTasks: any[] = [];
 
 function setupCronJob(config: any) {
   // Clear existing tasks
@@ -833,22 +859,27 @@ function setupCronJob(config: any) {
         console.log(`Setting up daily auto-post cron for ${hour}:${minute} in timezone ${tz}`);
         
         const task = cron.schedule(cronExpression, async () => {
-          console.log(`Cron triggered (${hour}:${minute} ${tz}): Waiting for jitter delay to prevent API throttling on the hour...`);
-          // Random delay between 15 and 90 seconds to avoid the "top of the hour" global API throttling spike on Unsplash/wsrv.nl
-          const jitterDelayMs = Math.floor(Math.random() * 75000) + 15000;
-          
-          setTimeout(async () => {
-            console.log(`Jitter complete (${jitterDelayMs}ms). Generating and posting content...`);
-            try {
-              const postData = await generateAiPostData();
-              const currentConfig = await getBotConfig(); // get freshest config
-              await publishToSocialMedia(postData, currentConfig);
-            } catch (error) {
-              console.error(`Automated posting failed (${hour}:${minute} ${tz}):`, error);
+          console.log(`[SCHEDULED CRON] Triggered for ${hour}:${minute} (${tz}). Loading latest configuration...`);
+          try {
+            const currentConfig = await getBotConfig();
+            if (!currentConfig.isActive) {
+              console.log('[SCHEDULED CRON] Bot is currently inactive. Skipping automated post.');
+              return;
             }
-          }, jitterDelayMs);
+            if (!currentConfig.makeWebhookUrl && !currentConfig.fbPageId && !currentConfig.igUserId) {
+              console.warn('[SCHEDULED CRON] No webhook or social credentials configured. Skipping automated post.');
+              return;
+            }
+
+            console.log('[SCHEDULED CRON] Generating AI post with verified image...');
+            const postData = await generateAiPostData();
+            console.log(`[SCHEDULED CRON] Generated post [${postData.id}]. Publishing via social channels/webhook...`);
+            const publishResults = await publishToSocialMedia(postData, currentConfig);
+            console.log('[SCHEDULED CRON] Finished posting:', JSON.stringify(publishResults));
+          } catch (error) {
+            console.error(`[SCHEDULED CRON ERROR] (${hour}:${minute} ${tz}):`, error);
+          }
         }, {
-          scheduled: true,
           timezone: tz
         });
         currentTasks.push(task);

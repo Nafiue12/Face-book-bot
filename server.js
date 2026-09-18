@@ -8,6 +8,34 @@ import fs from "fs/promises";
 import cron from "node-cron";
 import crypto from "crypto";
 dotenv.config();
+function getFullSentences(text, maxLen = 400) {
+  if (!text) return "";
+  let cleanText = text.replace(/<[^>]*>?/gm, "").replace(/\n/g, " ").trim();
+  if (cleanText.length <= maxLen) return cleanText;
+  const sentenceRegex = /[^.!?]+[.!?]+/g;
+  const sentences = cleanText.match(sentenceRegex);
+  if (!sentences) {
+    const cut = cleanText.substring(0, maxLen);
+    const lastSpace = cut.lastIndexOf(" ");
+    return lastSpace > 0 ? cut.substring(0, lastSpace) + "..." : cut + "...";
+  }
+  let result = "";
+  for (const sentence of sentences) {
+    if (result.length > 0 && result.length + sentence.length > maxLen + 50) {
+      break;
+    }
+    result += sentence;
+    if (result.length >= maxLen) {
+      break;
+    }
+  }
+  if (result.length > maxLen + 150) {
+    const cut = result.substring(0, maxLen);
+    const lastSpace = cut.lastIndexOf(" ");
+    return lastSpace > 0 ? cut.substring(0, lastSpace) + "..." : cut + "...";
+  }
+  return result.trim();
+}
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 var CONFIG_FILE = path.join(process.cwd(), "bot-config.json");
@@ -27,16 +55,25 @@ async function getBotConfig() {
       parsed.webhookSecret = crypto.randomBytes(16).toString("hex");
       await fs.writeFile(CONFIG_FILE, JSON.stringify(parsed, null, 2), "utf-8");
     }
+    if (process.env.MAKE_WEBHOOK_URL) parsed.makeWebhookUrl = process.env.MAKE_WEBHOOK_URL;
+    if (process.env.FB_PAGE_ID) parsed.fbPageId = process.env.FB_PAGE_ID;
+    if (process.env.IG_USER_ID) parsed.igUserId = process.env.IG_USER_ID;
+    if (process.env.META_ACCESS_TOKEN) parsed.accessToken = process.env.META_ACCESS_TOKEN;
+    if (process.env.BOT_IS_ACTIVE === "true") parsed.isActive = true;
+    if (process.env.BOT_SCHEDULE_TIMES) {
+      parsed.scheduleTimes = process.env.BOT_SCHEDULE_TIMES.split(",");
+    }
     return parsed;
   } catch (error) {
     const defaultSecret = process.env.WEBHOOK_SECRET || crypto.randomBytes(16).toString("hex");
     return {
-      isActive: process.env.AUTO_POST_ACTIVE === "true" || false,
-      scheduleTimes: process.env.SCHEDULE_TIMES ? process.env.SCHEDULE_TIMES.split(",") : ["09:00"],
+      isActive: process.env.AUTO_POST_ACTIVE === "true" || process.env.BOT_IS_ACTIVE === "true" || false,
+      scheduleTimes: process.env.SCHEDULE_TIMES ? process.env.SCHEDULE_TIMES.split(",") : process.env.BOT_SCHEDULE_TIMES ? process.env.BOT_SCHEDULE_TIMES.split(",") : ["09:00"],
       fbPageId: process.env.FB_PAGE_ID || "",
       igUserId: process.env.IG_USER_ID || "",
-      accessToken: process.env.FB_ACCESS_TOKEN || "",
+      accessToken: process.env.FB_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || "",
       timezone: process.env.TIMEZONE || "UTC",
+      makeWebhookUrl: process.env.MAKE_WEBHOOK_URL || "",
       webhookSecret: defaultSecret
     };
   }
@@ -58,7 +95,7 @@ async function saveToHistory(id) {
     const history = await getPostHistory();
     if (!history.includes(id)) {
       history.push(id);
-      if (history.length > 150) history.shift();
+      if (history.length > 5e3) history.shift();
       await fs.writeFile(HISTORY_FILE, JSON.stringify(history, null, 2), "utf-8");
     }
   } catch (error) {
@@ -179,12 +216,24 @@ async function fetchFromReddit() {
     { sub: "flexibility", cat: "Yoga & Mobility" },
     { sub: "running", cat: "Cardio & Endurance" },
     { sub: "fasting", cat: "Diet & Fasting" },
-    { sub: "HIIT", cat: "Cardio & Endurance" }
+    { sub: "HIIT", cat: "Cardio & Endurance" },
+    { sub: "sleep", cat: "Recovery & Wellness" },
+    { sub: "triathlon", cat: "Cardio & Endurance" },
+    { sub: "kettlebell", cat: "Strength & Power" },
+    { sub: "homefitness", cat: "Home Workouts" },
+    { sub: "martialarts", cat: "Martial Arts" },
+    { sub: "amateur_boxing", cat: "Martial Arts" },
+    { sub: "pilates", cat: "Yoga & Mobility" },
+    { sub: "mentalhealth", cat: "Recovery & Wellness" },
+    { sub: "longevity", cat: "Science" }
   ];
   const randomSource = redditSources[Math.floor(Math.random() * redditSources.length)];
   const randomSub = randomSource.sub;
-  const response = await fetch(`https://www.reddit.com/r/${randomSub}/top.json?t=month&limit=30`, {
-    headers: { "User-Agent": "DailyGymFactBot/1.0" }
+  const sorts = ["hot", "new", "top", "rising"];
+  const randomSort = sorts[Math.floor(Math.random() * sorts.length)];
+  const timeQuery = randomSort === "top" ? "&t=all" : "";
+  const response = await fetch(`https://www.reddit.com/r/${randomSub}/${randomSort}.json?limit=100${timeQuery}`, {
+    headers: { "User-Agent": "DailyGymFactBot/2.0" }
   });
   const data = await response.json();
   const history = await getPostHistory();
@@ -200,7 +249,7 @@ async function fetchFromReddit() {
           fact: post.title,
           caption: `Insights from the community! \u{1F4AA}
 
-${post.selftext ? post.selftext.substring(0, 150) + "..." : ""}`,
+${post.selftext ? getFullSentences(post.selftext, 300) : ""}`,
           hashtags: `#${randomSub} #FitnessJourney #GymTips`,
           comment_source: `https://reddit.com${post.permalink}`
         };
@@ -220,7 +269,7 @@ async function fetchFromWger() {
       for (const ex of exercises) {
         const exId = `wger_${ex.id}`;
         if (!history.includes(exId) && ex.description) {
-          const cleanDesc = ex.description.replace(/<[^>]*>?/gm, "").substring(0, 150) + "...";
+          const cleanDesc = getFullSentences(ex.description, 250);
           return {
             id: exId,
             category: "Training Methods",
@@ -276,7 +325,7 @@ async function fetchFromHealthNews() {
           category: "Science",
           fact: `New Fitness Study: ${item.title}`,
           caption: `Did you know? \u{1F914} 
-${item.description ? item.description.replace(/<[^>]*>?/gm, "").substring(0, 120) + "..." : "Fascinating new fitness research just dropped!"}
+${item.description ? getFullSentences(item.description, 250) : "Fascinating new fitness research just dropped!"}
 
 Stay informed and keep growing! \u{1F4DA}\u{1F4AA}`,
           hashtags: "#FitnessScience #HealthNews #FitnessResearch",
@@ -307,7 +356,21 @@ async function fetchFromWikipedia() {
     "Biomechanics",
     "Stretching",
     "Core stability",
-    "Protein (nutrient)"
+    "Protein (nutrient)",
+    "Physical fitness",
+    "Aerobic exercise",
+    "Anaerobic exercise",
+    "Sleep and metabolism",
+    "Cold-water immersion",
+    "Sports biomechanics",
+    "Kinesiology",
+    "Human anatomy",
+    "Sauna",
+    "Fasting",
+    "Intermittent fasting",
+    "Exercise physiology",
+    "Sports psychology",
+    "Meditation"
   ];
   const randomTopic = topics[Math.floor(Math.random() * topics.length)];
   try {
@@ -320,7 +383,7 @@ async function fetchFromWikipedia() {
         const page = pages[0];
         const pageId = `wiki_${page.pageid}`;
         if (!history.includes(pageId) && page.extract) {
-          const cleanExtract = page.extract.substring(0, 200) + "...";
+          const cleanExtract = getFullSentences(page.extract, 300);
           return {
             id: pageId,
             category: "History & Facts",
@@ -357,7 +420,7 @@ async function fetchFromMealDB() {
           const detailData = await detailRes.json();
           if (detailData && detailData.meals && detailData.meals.length > 0) {
             const recipe = detailData.meals[0];
-            const cleanInstructions = recipe.strInstructions ? recipe.strInstructions.substring(0, 150) + "..." : "Check the link for full recipe!";
+            const cleanInstructions = recipe.strInstructions ? getFullSentences(recipe.strInstructions, 300) : "Check the link for full recipe!";
             return {
               id: mealId,
               category: "Healthy Recipes",
@@ -417,56 +480,141 @@ async function generateAiPostData(config) {
       "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5",
       "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e",
       "https://images.unsplash.com/photo-1507398941214-572c25f4b1dc",
-      "https://images.unsplash.com/photo-1526506114642-4f323a6f1165"
+      "https://images.unsplash.com/photo-1526506114642-4f323a6f1165",
+      "https://images.unsplash.com/photo-1517963879433-6ad2b056d712",
+      "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61",
+      "https://images.unsplash.com/photo-1574680088814-c9e8a10d8a4d"
     ],
     "Bodybuilding": [
       "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b",
       "https://images.unsplash.com/photo-1558611848-73f7eb4001a1",
       "https://images.unsplash.com/photo-1517838277536-f5f99be501cd",
-      "https://images.unsplash.com/photo-1574680096145-d05b474e2155"
+      "https://images.unsplash.com/photo-1574680096145-d05b474e2155",
+      "https://images.unsplash.com/photo-1528360983277-13d401cdc186",
+      "https://images.unsplash.com/photo-1605296867304-46d5465a13f1"
     ],
     "Yoga & Mobility": [
       "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b",
       "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0",
       "https://images.unsplash.com/photo-1575052814086-f385e2e2ad1b",
       "https://images.unsplash.com/photo-1506126613408-eca07ce68773",
-      "https://images.unsplash.com/photo-1518611012118-696072aa579a"
+      "https://images.unsplash.com/photo-1518611012118-696072aa579a",
+      "https://images.unsplash.com/photo-1552196563-552592596167",
+      "https://images.unsplash.com/photo-1603988363607-e1e4a66962c6"
     ],
     "Cardio & Endurance": [
       "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8",
       "https://images.unsplash.com/photo-1552674605-db6ffd4facb5",
       "https://images.unsplash.com/photo-1513593771513-7b58b6c4af38",
       "https://images.unsplash.com/photo-1530143311094-34d807799e8f",
-      "https://images.unsplash.com/photo-1461896836934-ffe145ab64c1"
+      "https://images.unsplash.com/photo-1461896836934-ffe145ab64c1",
+      "https://images.unsplash.com/photo-1502224562085-639556652f33",
+      "https://images.unsplash.com/photo-1536098561742-ca998e48cbcc"
     ],
     "Diet": [
       "https://images.unsplash.com/photo-1490645935967-10de6ba17061",
       "https://images.unsplash.com/photo-1512621776951-a57141f2eefd",
       "https://images.unsplash.com/photo-1498837167922-41c46b21c620",
-      "https://images.unsplash.com/photo-1493770348161-369560ae357d"
+      "https://images.unsplash.com/photo-1493770348161-369560ae357d",
+      "https://images.unsplash.com/photo-1505253758473-96b7015fcd40",
+      "https://images.unsplash.com/photo-1478144596228-3e499e327663"
     ],
     "Healthy Recipes": [
       "https://images.unsplash.com/photo-1482049016688-2d3e1b311543",
       "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
-      "https://images.unsplash.com/photo-1490645935967-10de6ba17061"
+      "https://images.unsplash.com/photo-1490645935967-10de6ba17061",
+      "https://images.unsplash.com/photo-1473093295043-cdd812d0e601",
+      "https://images.unsplash.com/photo-1498837167922-41c46b21c620",
+      "https://images.unsplash.com/photo-1546069901-ba9599a7e63c",
+      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd",
+      "https://images.unsplash.com/photo-1505253758473-96b7015fcd40",
+      "https://images.unsplash.com/photo-1493770348161-369560ae357d"
+    ],
+    "Recovery & Wellness": [
+      "https://images.unsplash.com/photo-1541892079-2475b1212bc0",
+      "https://images.unsplash.com/photo-1515023115689-589c33041d3c",
+      "https://images.unsplash.com/photo-1531259683007-016a7b628fc3",
+      "https://images.unsplash.com/photo-1512438248247-f0f2a5a8b7f0",
+      "https://images.unsplash.com/photo-1521714161819-15534968fc5f",
+      "https://images.unsplash.com/photo-1511295742362-92c96b1cf484",
+      "https://images.unsplash.com/photo-1517436073-3b1b1519fca9",
+      "https://images.unsplash.com/photo-1506126613408-eca07ce68773",
+      "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b"
+    ],
+    "Home Workouts": [
+      "https://images.unsplash.com/photo-1518611012118-696072aa579a",
+      "https://images.unsplash.com/photo-1598289431512-b97b0917affc",
+      "https://images.unsplash.com/photo-1576678927484-cc907957088c",
+      "https://images.unsplash.com/photo-1513593771513-7b58b6c4af38",
+      "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b",
+      "https://images.unsplash.com/photo-1599058917212-d750089bc07e",
+      "https://images.unsplash.com/photo-1599058918144-1ffabb6ab9a0"
+    ],
+    "Martial Arts": [
+      "https://images.unsplash.com/photo-1555597673-b21d5c935865",
+      "https://images.unsplash.com/photo-1591117207239-788bf8de6c3b",
+      "https://images.unsplash.com/photo-1599552611573-8b7762c2f822",
+      "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61",
+      "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5",
+      "https://images.unsplash.com/photo-1555597673-b21d5c935865"
+    ],
+    "Science": [
+      "https://images.unsplash.com/photo-1576086213369-97a306d36557",
+      "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69",
+      "https://images.unsplash.com/photo-1530026405186-ed1f139313f8",
+      "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158",
+      "https://images.unsplash.com/photo-1614935151651-0bea6508abb0",
+      "https://images.unsplash.com/photo-1579684385127-1ef15d508118",
+      "https://images.unsplash.com/photo-1532094349884-543bc11b234d"
+    ],
+    "Motivation": [
+      "https://images.unsplash.com/photo-1552674605-db6ffd4facb5",
+      "https://images.unsplash.com/photo-1507398941214-572c25f4b1dc",
+      "https://images.unsplash.com/photo-1517836357463-d25dfeac3438",
+      "https://images.unsplash.com/photo-1461896836934-ffe145ab64c1",
+      "https://images.unsplash.com/photo-1526506114642-4f323a6f1165",
+      "https://images.unsplash.com/photo-1517838277536-f5f99be501cd",
+      "https://images.unsplash.com/photo-1534438327276-14e5300c3a48"
     ],
     "General": [
       "https://images.unsplash.com/photo-1517836357463-d25dfeac3438",
       "https://images.unsplash.com/photo-1579722820308-d74e571900a9",
       "https://images.unsplash.com/photo-1554244933-d876deb6b2ff",
-      "https://images.unsplash.com/photo-1540497077202-7c8a3999166f"
+      "https://images.unsplash.com/photo-1540497077202-7c8a3999166f",
+      "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e",
+      "https://images.unsplash.com/photo-1534438327276-14e5300c3a48",
+      "https://images.unsplash.com/photo-1517963879433-6ad2b056d712",
+      "https://images.unsplash.com/photo-1552674605-db6ffd4facb5",
+      "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b",
+      "https://images.unsplash.com/photo-1534438097544-b0a6493b821f"
     ]
   };
   let imageList = curatedImages["General"];
   const cat = postData.category || "";
   if (cat.includes("Strength") || cat.includes("CrossFit") || cat.includes("Training")) imageList = curatedImages["Strength & Power"];
   else if (cat.includes("Bodybuilding")) imageList = curatedImages["Bodybuilding"];
-  else if (cat.includes("Yoga") || cat.includes("Mobility")) imageList = curatedImages["Yoga & Mobility"];
+  else if (cat.includes("Yoga") || cat.includes("Mobility") || cat.includes("Pilates")) imageList = curatedImages["Yoga & Mobility"];
   else if (cat.includes("Cardio") || cat.includes("Endurance")) imageList = curatedImages["Cardio & Endurance"];
   else if (cat.includes("Diet") || cat.includes("Nutrition") || cat.includes("Fasting")) imageList = curatedImages["Diet"];
-  else if (cat.includes("Recipe")) imageList = curatedImages["Healthy Recipes"];
-  const baseImageUrl = imageList[Math.floor(Math.random() * imageList.length)];
-  postData.image_url = `${baseImageUrl}?q=80&w=1080&h=1080&auto=format&fit=crop&crop=faces,entropy`;
+  else if (cat.includes("Recipe") || cat.includes("Meal")) imageList = curatedImages["Healthy Recipes"];
+  else if (cat.includes("Recovery") || cat.includes("Wellness") || cat.includes("Sleep") || cat.includes("Mental")) imageList = curatedImages["Recovery & Wellness"];
+  else if (cat.includes("Home Workouts") || cat.includes("Calisthenics")) imageList = curatedImages["Home Workouts"];
+  else if (cat.includes("Martial Arts") || cat.includes("Boxing")) imageList = curatedImages["Martial Arts"];
+  else if (cat.includes("Science") || cat.includes("Research") || cat.includes("Anatomy") || cat.includes("Physiology")) imageList = curatedImages["Science"];
+  else if (cat.includes("Motivation") || cat.includes("Mindset")) imageList = curatedImages["Motivation"];
+  let availableImages = imageList.filter((url) => !history.includes(url));
+  if (availableImages.length === 0) {
+    console.log(`All images in category used. Falling back to General.`);
+    availableImages = curatedImages["General"].filter((url) => !history.includes(url));
+  }
+  if (availableImages.length === 0) {
+    console.log(`All images used! Reusing from General pool.`);
+    availableImages = curatedImages["General"];
+  }
+  const baseImageUrl = availableImages[Math.floor(Math.random() * availableImages.length)];
+  postData.image_id = baseImageUrl;
+  const cleanUrl = baseImageUrl.replace(/^https?:\/\//, "");
+  postData.image_url = `https://wsrv.nl/image.jpg?url=${cleanUrl}&w=1080&h=1080&fit=cover&output=jpg&ext=.jpg`;
   return postData;
 }
 async function publishToSocialMedia(postData, config) {
@@ -479,7 +627,28 @@ ${postData.caption}
 ${postData.hashtags}`;
   console.log("Initiating automated post to social media...");
   const results = { fb: false, ig: false, errors: [] };
-  if (fbPageId) {
+  if (config.makeWebhookUrl) {
+    try {
+      console.log("Sending Facebook post to Make.com webhook bypass...");
+      const webhookRes = await fetch(config.makeWebhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image_url: imageUrl,
+          message: fullCaption,
+          comment: `Source: ${postData.comment_source}`
+        })
+      });
+      if (!webhookRes.ok) {
+        throw new Error(`Webhook returned status ${webhookRes.status}`);
+      }
+      console.log("Successfully sent to Make.com webhook");
+      results.fb = true;
+    } catch (e) {
+      console.error("Make.com webhook failed:", e.message);
+      results.errors.push(`Facebook (Make.com): ${e.message}`);
+    }
+  } else if (fbPageId) {
     try {
       const verifyRes = await fetch(`https://graph.facebook.com/v19.0/me?access_token=${accessToken}`);
       const verifyData = await verifyRes.json();
@@ -520,7 +689,13 @@ ${postData.hashtags}`;
       const igMediaRes = await fetch(`https://graph.facebook.com/v19.0/${igUserId}/media`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image_url: imageUrl, caption: fullCaption, access_token: accessToken })
+        body: JSON.stringify({
+          image_url: imageUrl,
+          caption: fullCaption,
+          media_type: "IMAGE",
+          // Force Meta to treat this as a static image
+          access_token: accessToken
+        })
       });
       const igMediaData = await igMediaRes.json();
       if (igMediaData.error) throw new Error(igMediaData.error.message);
@@ -551,6 +726,9 @@ ${postData.hashtags}`;
   }
   if ((results.fb || results.ig) && postData.id) {
     await saveToHistory(postData.id);
+    if (postData.image_id) {
+      await saveToHistory(postData.image_id);
+    }
   }
   return results;
 }
@@ -572,14 +750,18 @@ function setupCronJob(config) {
         const tz = config.timezone || "UTC";
         console.log(`Setting up daily auto-post cron for ${hour}:${minute} in timezone ${tz}`);
         const task = cron.schedule(cronExpression, async () => {
-          console.log(`Cron triggered (${hour}:${minute} ${tz}): Generating and posting content...`);
-          try {
-            const postData = await generateAiPostData();
-            const currentConfig = await getBotConfig();
-            await publishToSocialMedia(postData, currentConfig);
-          } catch (error) {
-            console.error(`Automated posting failed (${hour}:${minute} ${tz}):`, error);
-          }
+          console.log(`Cron triggered (${hour}:${minute} ${tz}): Waiting for jitter delay to prevent API throttling on the hour...`);
+          const jitterDelayMs = Math.floor(Math.random() * 75e3) + 15e3;
+          setTimeout(async () => {
+            console.log(`Jitter complete (${jitterDelayMs}ms). Generating and posting content...`);
+            try {
+              const postData = await generateAiPostData();
+              const currentConfig = await getBotConfig();
+              await publishToSocialMedia(postData, currentConfig);
+            } catch (error) {
+              console.error(`Automated posting failed (${hour}:${minute} ${tz}):`, error);
+            }
+          }, jitterDelayMs);
         }, {
           scheduled: true,
           timezone: tz
@@ -633,11 +815,11 @@ app.post("/api/generate-post", async (req, res) => {
 app.post("/api/publish-now", async (req, res) => {
   try {
     const config = await getBotConfig();
-    if (!config.fbPageId && !config.igUserId) {
-      return res.status(400).json({ error: "Please configure Facebook Page ID or Instagram Account ID in Settings first." });
+    if (!config.fbPageId && !config.igUserId && !config.makeWebhookUrl) {
+      return res.status(400).json({ error: "Please configure Facebook Page ID, Instagram Account ID, or a Make.com Webhook in Settings first." });
     }
-    if (!config.accessToken) {
-      return res.status(400).json({ error: "Please configure Meta Access Token in Settings first." });
+    if (!config.accessToken && !config.makeWebhookUrl) {
+      return res.status(400).json({ error: "Please configure Meta Access Token or Make.com Webhook in Settings first." });
     }
     const postData = await generateAiPostData();
     const publishResults = await publishToSocialMedia(postData, config);
